@@ -251,32 +251,32 @@ html {
   
   .progress .bg-blue {
     background-color: #459CFF;
-    animation: progress 2.5s ease-in-out forwards;
-    -webkit-animation: progress 2.5s ease-in-out forwards;
+    animation: progress 1s ease-in-out forwards;
+    -webkit-animation: progress 1s ease-in-out forwards;
     animation-delay: 3s;
   }
   .progress .bg-blue2 {
     background-color: #459CFF;
-    animation: progress-2 2.5s ease-in-out forwards;
-    -webkit-animation: progress-2 2.5s ease-in-out forwards;
+    animation: progress-2 1s ease-in-out forwards;
+    -webkit-animation: progress-2 1s ease-in-out forwards;
     animation-delay: 3s;
   }
   .progress .bg-blue3 {
     background-color: #459CFF;
-    animation: progress-3 2.5s ease-in-out forwards;
-    -webkit-animation: progress-3 2.5s ease-in-out forwards;
+    animation: progress-3 1s ease-in-out forwards;
+    -webkit-animation: progress-3 1s ease-in-out forwards;
     animation-delay: 3s;
   }
   .progress .bg-blue4 {
     background-color: #459CFF;
-    animation: progress-4 2.5s ease-in-out forwards;
-    -webkit-animation: progress-4 2.5s ease-in-out forwards;
+    animation: progress-4 1s ease-in-out forwards;
+    -webkit-animation: progress-4 1s ease-in-out forwards;
     animation-delay: 3s;
   }
   .progress .bg-blue5 {
     background-color: #459CFF;
-    animation: progress-5 2.5s ease-in-out forwards;
-    -webkit-animation: progress-5 2.5s ease-in-out forwards;
+    animation: progress-5 1s ease-in-out forwards;
+    -webkit-animation: progress-5 1s ease-in-out forwards;
     animation-delay: 3s;
   }
   .card {
