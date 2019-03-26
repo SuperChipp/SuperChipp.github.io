@@ -1,4 +1,12 @@
 ---
-label: Pew
+label: PewPewPew
 hide_body: false
-fields: []
+fields:
+- type: include
+  name: gallery
+  label: Gallery
+  description: My products gallery
+  hidden: true
+- type: blocks
+  name: items
+  label: Items
