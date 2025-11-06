@@ -28,19 +28,10 @@
         }
         /* For the donut chart */
         #donut-chart {
-            background: conic-gradient(
-                from 0deg,
-                #3b82f6 0% 12%,
-                #10b981 12% 92%,
-                #a855f7 92% 94%,
-                #f59e0b 94% 99%,
-                #ef4444 99% 100%
-            );
-            border-radius: 50%;
-            width: 200px;
-            height: 200px;
-            margin: 1.5rem auto;
+            /* ... existing styles ... */
             position: relative;
+            /* Animation transition */
+            transition: background 1s ease-out;
         }
         #donut-chart::before {
             content: '';
@@ -52,6 +43,10 @@
             height: 70%;
             background: #1f2937; /* bg-neutral-800 */
             border-radius: 50%;
+        }
+        /* For bar chart animation */
+        .chart-bar {
+            transition: height 1s ease-out;
         }
     </style>
 </head>
@@ -267,7 +262,7 @@
                     <label for="tx-amount" class="block text-sm font-medium text-neutral-300 mb-1">Amount ($)</label>
                     <input type="number" id="tx-amount" step="0.01" min="0.01" placeholder="0.00" class="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                 </div>
-                <div class="mb-4">
+                <div id="category-field-container" class="mb-4"> <!-- Added container for show/hide -->
                     <label for="tx-category" class="block text-sm font-medium text-neutral-300 mb-1">Category</label>
                     <select id="tx-category" class="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                         <!-- Categories will be populated by JS -->
@@ -290,34 +285,7 @@
         </div>
     </div>
     
-    <!-- Setup Modal (for Client ID) -->
-    <div id="setup-modal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4">
-        <div class="modal-content bg-neutral-800 w-full max-w-lg p-6 rounded-lg shadow-xl">
-            <h2 class="text-2xl font-bold mb-4 text-neutral-100">One-Time Setup</h2>
-            <p class="mb-4 text-neutral-300">To connect to Google Drive, this app needs your Google OAuth Client ID.</p>
-            <p class="mb-4 text-sm text-neutral-400">
-                You can get this by:
-                <ol class="list-decimal list-inside text-sm text-neutral-400 space-y-1 pl-4">
-                    <li>Going to the <a href="https://console.cloud.google.com/" target="_blank" class="text-blue-400 hover:underline">Google Cloud Console</a>.</li>
-                    <li>Creating a new project.</li>
-                    <li>Enabling the "Google Drive API".</li>
-                    <li>Going to "APIs & Services" > "Credentials".</li>
-                    <li>Creating an "OAuth client ID" for a "Web application".</li>
-                    <li>Adding your GitHub Pages URL (e.g., `https://username.github.io`) to "Authorized JavaScript origins".</li>
-                    <li>Copying the generated Client ID.</li>
-                </ol>
-            </p>
-            <div class="mb-4">
-                <label for="client-id-input" class="block text-sm font-medium text-neutral-300 mb-1">Google OAuth Client ID</label>
-                <input type="text" id="client-id-input" placeholder="xxxxx.apps.googleusercontent.com" class="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div class="flex justify-end">
-                <button id="save-client-id-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
-                    Save and Continue
-                </button>
-            </div>
-        </div>
-    </div>
+    <!-- Setup Modal (for Client ID) - REMOVED -->
 
     <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-10 right-10 bg-green-600 text-white py-3 px-6 rounded-lg shadow-xl opacity-0 transition-opacity duration-300 z-50">
@@ -338,19 +306,15 @@
         // === APP STATE ===
         let gapiClient;
         let tokenClient;
-        let googleClientId = localStorage.getItem('googleClientId');
+        let googleClientId = '389870736002-b67o7o52m7u47ra7m97epoud9lk55oic.apps.googleusercontent.com'; // Hardcoded Client ID
         let transactions = []; // Our local database
-        let categories = ['Food', 'Transport', 'Utilities', 'Entertainment', 'Salary', 'Other'];
+        let categories = ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Salary', 'Other']; // Added 'Shopping'
         let financeFileId = null; // Google Drive File ID
         let isSaving = false; // Debounce saving
         let searchFilter = '';
         let typeFilter = 'all';
 
         // === DOM ELEMENTS ===
-        const setupModal = document.getElementById('setup-modal');
-        const clientIdInput = document.getElementById('client-id-input');
-        const saveClientIdButton = document.getElementById('save-client-id-button');
-
         const authorizeButton = document.getElementById('authorize-button');
         const signoutButton = document.getElementById('signout-button');
         const userProfile = document.getElementById('user-profile');
@@ -368,6 +332,7 @@
         const txDate = document.getElementById('tx-date');
         const txDescription = document.getElementById('tx-description');
         const txCategory = document.getElementById('tx-category');
+        const txCategoryContainer = document.getElementById('category-field-container'); // Get container
         const txAmount = document.getElementById('tx-amount');
         
         // Dashboard Cards
@@ -395,15 +360,9 @@
 
         // === INITIALIZATION ===
         window.onload = () => {
-            // 1. Check for Client ID
-            if (!googleClientId) {
-                showSetupModal();
-            } else {
-                hideSetupModal();
-                // 2. Load Google API scripts
-                loadGapiScript();
-                loadGisScript();
-            }
+            // 1. Load Google API scripts (Client ID is hardcoded)
+            loadGapiScript();
+            loadGisScript();
 
             // Init event listeners for filters
             searchTxInput.addEventListener('input', (e) => {
@@ -425,29 +384,17 @@
             syncDriveButton.addEventListener('click', () => {
                 saveFileToDrive();
             });
+            // Listener for tx type change
+            txType.addEventListener('change', () => {
+                if (txType.value === 'expense') {
+                    txCategoryContainer.classList.remove('hidden');
+                    txCategory.required = true;
+                } else {
+                    txCategoryContainer.classList.add('hidden');
+                    txCategory.required = false;
+                }
+            });
         };
-
-        function showSetupModal() {
-            clientIdInput.value = '';
-            setupModal.classList.remove('hidden');
-        }
-
-        function hideSetupModal() {
-            setupModal.classList.add('hidden');
-        }
-
-        saveClientIdButton.addEventListener('click', () => {
-            const id = clientIdInput.value.trim();
-            if (id) {
-                googleClientId = id;
-                localStorage.setItem('googleClientId', id);
-                hideSetupModal();
-                loadGapiScript();
-                loadGisScript();
-            } else {
-                showToast('Please enter a valid Client ID.', 'error');
-            }
-        });
 
         // === GOOGLE AUTH & API ===
 
@@ -500,9 +447,7 @@
             } catch (error) {
                 console.error('Error initializing GIS client', error);
                 if (error.details?.includes('invalid client_id')) {
-                    showToast('Invalid Google Client ID. Please re-enter.', 'error');
-                    localStorage.removeItem('googleClientId');
-                    showSetupModal();
+                    showToast('Hardcoded Google Client ID is invalid.', 'error');
                 }
             }
         }
@@ -995,7 +940,16 @@
             });
 
             // Remove trailing comma and space
-            donutChart.style.background = gradientString.slice(0, -2) + ')';
+            const finalGradient = gradientString.slice(0, -2) + ')';
+            
+            // Set initial state for animation
+            donutChart.style.background = '#404040'; // neutral-700
+            
+            // Apply final gradient after a short delay to trigger transition
+            setTimeout(() => {
+                donutChart.style.background = finalGradient;
+            }, 10);
+
             donutLegend.innerHTML = legendHtml;
         }
 
@@ -1046,13 +1000,20 @@
                 return `
                     <div class="flex flex-col h-full w-full items-center justify-end">
                         <div class="flex items-end w-full h-full justify-center space-x-1">
-                            <div class="w-full bg-green-500 rounded-t-sm" style="height: ${incomeHeight}%" title="Income: ${formatCurrency(m.income)}"></div>
-                            <div class="w-full bg-red-500 rounded-t-sm" style="height: ${expenseHeight}%" title="Expense: ${formatCurrency(m.expense)}"></div>
+                            <div class="w-full bg-green-500 rounded-t-sm chart-bar" style="height: 0%" data-final-height="${incomeHeight}" title="Income: ${formatCurrency(m.income)}"></div>
+                            <div class="w-full bg-red-500 rounded-t-sm chart-bar" style="height: 0%" data-final-height="${expenseHeight}" title="Expense: ${formatCurrency(m.expense)}"></div>
                         </div>
                         <span class="text-xs text-neutral-400 mt-2">${m.month}</span>
                     </div>
                 `;
             }).join('');
+
+            // Trigger bar animation
+            setTimeout(() => {
+                barChartContainer.querySelectorAll('.chart-bar').forEach(bar => {
+                    bar.style.height = `${bar.dataset.finalHeight}%`;
+                });
+            }, 10);
         }
         
         /**
@@ -1065,7 +1026,8 @@
                 id: transactions.length, // Simple temporary ID
                 date: txDate.value,
                 description: txDescription.value.trim() || 'No Description', // Handle empty description
-                category: txCategory.value.trim(),
+                // Set category to 'Income' if type is income, else use selected value
+                category: txType.value === 'income' ? 'Income' : txCategory.value.trim(),
                 amount: parseFloat(txAmount.value),
                 type: txType.value
             };
@@ -1111,11 +1073,21 @@
             transactionForm.reset();
             txDate.value = new Date().toISOString().split('T')[0]; // Set default date
             
+            // Set initial category visibility based on default type ('expense')
+            if (txType.value === 'expense') {
+                txCategoryContainer.classList.remove('hidden');
+                txCategory.required = true;
+            } else {
+                txCategoryContainer.classList.add('hidden');
+                txCategory.required = false;
+            }
+
             // Populate category dropdown
             txCategory.innerHTML = '<option value="">Select category</option>'; // Clear existing
-            const relevantCategories = categories.filter(c => c.toLowerCase() !== 'salary'); // Example filter
+            // Filter out income-specific categories from the *expense* list
+            const expenseCategories = categories.filter(c => c.toLowerCase() !== 'salary' && c.toLowerCase() !== 'income');
             
-            relevantCategories.forEach(cat => {
+            expenseCategories.forEach(cat => {
                 const option = document.createElement('option');
                 option.value = cat;
                 option.textContent = cat;
