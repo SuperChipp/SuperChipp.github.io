@@ -298,6 +298,7 @@
                 
                 <div class="flex justify-end">
                     <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">Save and Continue</button>
+
                 </div>
             </form>
         </div>
@@ -323,8 +324,6 @@
         let CLIENT_ID = localStorage.getItem(CLIENT_ID_KEY) || null;
         let PICKER_API_KEY = localStorage.getItem(API_KEY_KEY) || null;
         
-        // --- NEW SCOPE ---
-        // Added 'userinfo.profile' to get the user's name
         const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile';
 
         let tokenClient;
@@ -544,14 +543,12 @@
                 await gapi.client.load('https://sheets.googleapis.com/$discovery/rest?version=v4');
                 await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
                 
-                // --- NEW METHOD FOR GETTING USER INFO ---
-                // This uses the 'userinfo.profile' scope and does not require the People API
                 showLoader('Accessing user profile...');
                 const profileResponse = await gapi.client.request({
                     'path': 'https://www.googleapis.com/oauth2/v2/userinfo'
                 });
 
-                const userName = profileResponse.result.name; // 'name' instead of 'names[0].displayName'
+                const userName = profileResponse.result.name; 
                 userNameEl.textContent = `Hello, ${userName}`;
                 userNameEl.classList.remove('hidden');
                 authButton.textContent = 'Sign Out';
@@ -565,7 +562,6 @@
                     await loadAppData();
                 }
             } catch (err) {
-                // --- BETTER ERROR LOGGING ---
                 console.error('Error during app initialization:', err);
                 let errorMessage = 'Could not load Google APIs.';
                 if (err.result && err.result.error) {
@@ -632,7 +628,7 @@
                 // If no valid file ID, search for a default file
                 showLoader('Searching for finance sheet...');
                 const response = await gapi.client.drive.files.list({
-                   'q': "mimeType='application/vnd.google-apps.spreadsheet' and name='MyFinanceAppSheet' and trashed=false",
+                   'q': "mimeType='application/vnd.google-apps-spreadsheet' and name='MyFinanceAppSheet' and trashed=false",
                     'fields': 'files(id, name)'
                 });
                 
@@ -644,7 +640,7 @@
                     showToast('Found existing finance sheet.');
                     await loadAppData();
                 } else {
-                    // No file found, open the picker for the user to select or create one.
+                    // No file found, open the picker for the user to select one.
                     showLoader('Please select or create a finance sheet...');
                     createPicker();
                 }
@@ -655,43 +651,33 @@
             }
         }
 
+        // --- FIX: SIMPLIFIED PICKER ---
         function createPicker() {
-            // This function now uses the PICKER_API_KEY variable
             const view = new google.picker.View(google.picker.ViewId.SPREADSHEETS);
-            view.setMimeTypes('application/vnd.google-apps.spreadsheet');
-            
-            const createView = new google.picker.View(google.picker.ViewId.CREATE_DOCUMENT);
-            createView.setLabel('Create New Sheet');
-            createView.setMimeTypes('application/vnd.google-apps.spreadsheet');
-            createView.setResourceId(google.picker.ResourceId.NEW_DOCUMENT);
-            createView.setDocumentTemplate('MyFinanceAppSheet');
+            view.setMimeTypes('application/vnd.google-apps-spreadsheet');
             
             const picker = new google.picker.PickerBuilder()
-                .addViewGroup(view)
-                .addViewGroup(createView)
+                .addView(view)
                 .setTitle('Select your finance sheet')
                 .setOAuthToken(gapi.client.getToken().access_token)
-                .setDeveloperKey(PICKER_API_KEY) // Use variable here
-                .setCallback(pickerCallback)
+                .setDeveloperKey(PICKER_API_KEY)
+                .setCallback(pickerCallback) // Use the new callback
                 .build();
             
             picker.setVisible(true);
         }
         
+        // --- FIX: SIMPLIFIED CALLBACK ---
         async function pickerCallback(data) {
             hideLoader();
-            if (data.action === google.picker.Action.PICKED || data.action === google.picker.Action.CREATE) {
+            if (data.action === google.picker.Action.PICKED) {
                 const doc = data.docs[0];
                 sheetFileId = doc.id;
                 localStorage.setItem(SHEET_FILE_ID_KEY, sheetFileId);
                 
-                if (data.action === google.picker.Action.CREATE) {
-                    showToast('New sheet created: ' + doc.name);
-                    await initializeNewSheet();
-                } else {
-                    showToast('Selected sheet: ' + doc.name);
-                    await loadAppData();
-                }
+                showToast('Selected sheet: ' + doc.name);
+                // Check if the sheet is new/empty, if so, initialize it.
+                await checkAndInitializeSheet();
             } else if (data.action === google.picker.Action.CANCEL) {
                 showToast('Please select a file to continue.', 'error');
                 hideLoader();
@@ -706,10 +692,51 @@
 
         // --- DATA HANDLING (GOOGLE SHEETS API) ---
         
+        // --- NEW FUNCTION to check if a picked sheet is empty ---
+        async function checkAndInitializeSheet() {
+            showLoader('Checking sheet format...');
+            try {
+                // Try to get sheet data
+                const response = await gapi.client.sheets.spreadsheets.values.batchGet({
+                    spreadsheetId: sheetFileId,
+                    ranges: [`${SHEET_NAME}!A1:F1`, `${CATEGORY_SHEET_NAME}!A1:A1`],
+                });
+                
+                // If it loads without error, just load the data
+                await loadAppData();
+
+            } catch(err) {
+                // If it fails (e.g. "Unable to parse range"), it's likely a blank sheet
+                if (err.result && err.result.error.message.includes("Unable to parse range")) {
+                    showToast('Blank sheet detected. Initializing...', 'warning');
+                    await initializeNewSheet();
+                } else {
+                    // A different error
+                    console.error('Error checking sheet:', err);
+                    showToast('Could not access sheet.', 'error');
+                    hideLoader();
+                }
+            }
+        }
+
         async function initializeNewSheet() {
             showLoader('Initializing new sheet...');
             try {
-                // 1. Set headers for Transactions sheet
+                // 1. Rename Sheet1 to Transactions
+                const renameRequest = {
+                    requests: [{
+                        updateSheetProperties: {
+                            properties: { sheetId: 0, title: SHEET_NAME },
+                            fields: "title"
+                        }
+                    }]
+                };
+                await gapi.client.sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: sheetFileId,
+                    resource: renameRequest,
+                });
+
+                // 2. Set headers for Transactions sheet
                 const transactionHeaders = { values: [['ID', 'Date', 'Description', 'Amount', 'Type', 'Category']] };
                 await gapi.client.sheets.spreadsheets.values.update({
                     spreadsheetId: sheetFileId,
@@ -718,14 +745,14 @@
                     resource: transactionHeaders,
                 });
 
-                // 2. Create Categories sheet
+                // 3. Create Categories sheet
                 const addCategorySheetRequest = { requests: [{ addSheet: { properties: { title: CATEGORY_SHEET_NAME } } }] };
                 await gapi.client.sheets.spreadsheets.batchUpdate({
                     spreadsheetId: sheetFileId,
                     resource: addCategorySheetRequest,
                 });
 
-                // 3. Add default categories to Categories sheet
+                // 4. Add default categories to Categories sheet
                 const categoryData = DEFAULT_CATEGORIES.map(cat => [cat]);
                 const categoryBody = { values: categoryData };
                 await gapi.client.sheets.spreadsheets.values.update({
