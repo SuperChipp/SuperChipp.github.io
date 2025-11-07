@@ -1,916 +1,209 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personal Finance Manager</title>
-    
-    <!-- 1. Tailwind CSS -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- 2. SheetJS (xlsx) library - REMOVED -->
-    
-    <!-- 3. Google API Client -->
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Platform Library -->
     <script src="https://apis.google.com/js/api.js"></script>
-
-    <!-- App Styles -->
+    
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        /* Custom scrollbar for dark mode */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
         }
-        /* ... (rest of the styles are identical) ... */
-        .modal { transition: opacity 0.25s ease; }
-        .modal-content { transition: transform 0.25s ease; }
-        #donut-chart { position: relative; transition: background 1s ease-out; }
-        #donut-chart::before {
-            content: '';
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 70%; height: 70%;
-            background: #1f2937; /* bg-neutral-800 */
-            border-radius: 50%;
+        ::-webkit-scrollbar-track {
+            background: #1e293b; /* slate-800 */
         }
-        .chart-bar { transition: height 1s ease-out; }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; /* slate-600 */
+            border-radius: 6px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; /* slate-500 */
+        }
+
+        /* Chart.js responsive containers */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        /* Loading Spinner */
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+        @-webkit-keyframes spin {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Chart Animations */
+        #pie-chart, #bar-chart {
+            transition: transform 0.5s ease-out, opacity 0.5s ease-out;
+            transform: scale(0.9);
+            opacity: 0;
+        }
+        #pie-chart.loaded, #bar-chart.loaded {
+            transform: scale(1);
+            opacity: 1;
+        }
     </style>
 </head>
-<body class="bg-neutral-900 text-neutral-200">
+<body class="bg-slate-900 text-slate-200 font-sans antialiased">
 
-    <!-- (HTML structure is identical to before) -->
-    <!-- Main Application Container -->
-    <div id="app" class="container mx-auto p-4 md:p-8 max-w-full">
+    <!-- Main Application Wrapper -->
+    <div id="app-container" class="min-h-screen">
+        
         <!-- Header -->
-        <header class="flex justify-between items-center mb-6 p-4">
-            <div class="flex items-center space-x-3">
-                <!-- Logo -->
-                <svg class="w-8 h-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.097V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.75A.75.75 0 0 1 3 4.5h.75m12 0v.75A.75.75 0 0 0 15 6h.75m0 0v-.75A.75.75 0 0 0 15 4.5h-.75M5.25 12v.75A.75.75 0 0 1 4.5 13.5h-.75m0 0v-.75A.75.75 0 0 1 4.5 12h.75m12 0v.75A.75.75 0 0 0 16.5 13.5h.75m0 0v-.75A.75.75 0 0 0 16.5 12h-.75m-6 0v.75A.75.75 0 0 1 9 13.5h-.75m0 0v-.75A.75.75 0 0 1 9 12h.75M3 18.75V15a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 15v3.75m-18 0h18" /></svg>
-                <h1 class="text-2xl font-bold text-neutral-100">Personal Finance Manager</h1>
-            </div>
-            <div id="auth-container" class="flex items-center space-x-4">
-                <button id="authorize-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow transition duration-200">
-                    Sign In with Google
-                </button>
-                <button id="signout-button" class="hidden bg-neutral-700 hover:bg-neutral-600 text-neutral-200 font-bold py-2 px-4 rounded-lg shadow transition duration-200">
-                    Sign Out
-                </button>
-                <div id="user-profile" class="hidden w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center font-bold text-white">JD</div>
-            </div>
+        <header class="bg-slate-800 shadow-md sticky top-0 z-40">
+            <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex-shrink-0 flex items-center">
+                        <svg class="h-8 w-8 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.75A.75.75 0 013 4.5h.75m0 0H21m-18 0h18M3 6h18M3 6l.007.007M3 6a.75.75 0 01.75-.75h.75m0 0v.75a.75.75 0 01-.75.75h-.75M3.75 9v.75A.75.75 0 013 10.5h-.75m0 0v-.75A.75.75 0 013 9h.75m0 0H21m-18 0h18M3 10.5h18m-18 0l.007.007m-
+.007-.007a.75.75 0 01.75-.75h.75m0 0v.75a.75.75 0 01-.75.75h-.75m0 0H21m-18 0h18M3 13.5h18M3 13.5l.007.007m-.007-.007a.75.75 0 01.75-.75h.75m0 0v.75a.75.75 0 01-.75.75h-.75m0 0H21m-18 0h18" />
+                        </svg>
+                        <span class="ml-3 text-2xl font-bold text-white">Personal Finance Manager</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span id="user-name" class="hidden text-sm font-medium text-slate-300"></span>
+                        <button id="auth-button" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            Sign In with Google
+                        </button>
+                    </div>
+                </div>
+            </nav>
         </header>
 
-        <!-- Loading / Initial State -->
-        <div id="loading-state" class="text-center p-10 bg-neutral-800 rounded-lg shadow-xl">
-            <p class="text-xl text-neutral-400">Please sign in to load your financial data from Google Drive.</p>
-        </div>
-
         <!-- Main Content (Hidden by default) -->
-        <main id="main-content" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- (Main column and sidebar HTML are identical) -->
-            <!-- Main Column -->
-            <div class="lg:col-span-2 space-y-6">
-                <!-- Dashboard Summary -->
-                <section id="dashboard" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                    <!-- Cards: Current Balance, Total Income, Total Expenses, Savings Rate -->
-                    <!-- Current Balance -->
-                    <div class="bg-neutral-800 p-6 rounded-lg shadow-xl">
-                        <div class="flex justify-between items-start mb-2">
-                            <h2 class="text-lg font-semibold text-neutral-400">Current Balance</h2>
-                            <span class="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                            </span>
-                        </div>
-                        <p id="current-balance" class="text-3xl font-bold text-neutral-100">$0.00</p>
-                        <p id="balance-trend" class="text-sm text-neutral-500 mt-1 flex items-center"></p>
+        <main id="main-content" class="container mx-auto p-4 sm:p-6 lg:p-8 hidden">
+            
+            <!-- Dashboard Stats -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
+                <!-- Current Balance -->
+                <div class="bg-slate-800 p-5 rounded-xl shadow-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-slate-400">Current Balance</div>
+                        <div id="total-balance" class="text-3xl font-bold text-white mt-1">$0.00</div>
+                        <div id="balance-trend" class="text-sm text-slate-500 mt-1">+0.0% vs last month</div>
                     </div>
-                     <!-- Total Income -->
-                    <div class="bg-neutral-800 p-6 rounded-lg shadow-xl">
-                        <div class="flex justify-between items-start mb-2">
-                            <h2 class="text-lg font-semibold text-neutral-400">Total Income</h2>
-                            <span class="p-2 bg-green-500/20 text-green-400 rounded-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-                            </span>
-                        </div>
-                        <p id="total-income" class="text-3xl font-bold text-green-400">$0.00</p>
-                        <p id="income-trend" class="text-sm text-neutral-500 mt-1 flex items-center"></p>
+                    <div class="text-blue-400">
+                        <svg class="w-12 h-12" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0A2.25 2.25 0 0018.75 9.75H5.25A2.25 2.25 0 003 12m18 0v-6A2.25 2.25 0 0018.75 3.75H5.25A2.25 2.25 0 003 6v6" />
+                        </svg>
                     </div>
-                    <!-- Total Expenses -->
-                    <div class="bg-neutral-800 p-6 rounded-lg shadow-xl">
-                        <div class="flex justify-between items-start mb-2">
-                            <h2 class="text-lg font-semibold text-neutral-400">Total Expenses</h2>
-                            <span class="p-2 bg-red-500/20 text-red-400 rounded-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg>
-                            </span>
-                        </div>
-                        <p id="total-expense" class="text-3xl font-bold text-red-400">$0.00</p>
-                        <p id="expense-trend" class="text-sm text-neutral-500 mt-1 flex items-center"></p>
+                </div>
+                <!-- Total Income -->
+                <div class="bg-slate-800 p-5 rounded-xl shadow-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-slate-400">Total Income</div>
+                        <div id="total-income" class="text-3xl font-bold text-white mt-1">$0.00</div>
+                        <div id="income-trend" class="text-sm text-slate-500 mt-1">+0.0% vs last month</div>
                     </div>
-                    <!-- Savings Rate -->
-                    <div class="bg-neutral-800 p-6 rounded-lg shadow-xl">
-                        <div class="flex justify-between items-start mb-2">
-                            <h2 class="text-lg font-semibold text-neutral-400">Savings Rate</h2>
-                             <span class="p-2 bg-indigo-500/20 text-indigo-400 rounded-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20" /></svg>
-                            </span>
-                        </div>
-                        <p id="savings-rate" class="text-3xl font-bold text-indigo-400">0.0%</p>
-                        <p id="savings-trend" class="text-sm text-neutral-500 mt-1 flex items-center"></p>
+                    <div class="text-green-400">
+                        <svg class="w-12 h-12" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+                        </svg>
                     </div>
-                </section>
+                </div>
+                <!-- Total Expenses -->
+                <div class="bg-slate-800 p-5 rounded-xl shadow-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-slate-400">Total Expenses</div>
+                        <div id="total-expenses" class="text-3xl font-bold text-white mt-1">$0.00</div>
+                        <div id="expense-trend" class="text-sm text-slate-500 mt-1">+0.0% vs last month</div>
+                    </div>
+                    <div class="text-red-400">
+                        <svg class="w-12 h-12" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6L9 12.75l4.286-4.286a11.948 11.948 0 014.306 6.43l.776 2.898m0 0l3.182-5.511m-3.182 5.51l-5.511-3.181" />
+                        </svg>
+                    </div>
+                </div>
+                <!-- Savings Rate -->
+                <div class="bg-slate-800 p-5 rounded-xl shadow-lg flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-slate-400">Savings Rate</div>
+                        <div id="savings-rate" class="text-3xl font-bold text-white mt-1">0.0%</div>
+                        <div id="savings-trend" class="text-sm text-slate-500 mt-1">N/A</div>
+                    </div>
+                    <div class="text-yellow-400">
+                        <svg class="w-12 h-12" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 11.21 12.77 10.5 12 10.5c-.77 0-1.536.71-2.121 1.256L9 15.182M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                </div>
+            </section>
 
-                <!-- Charts Row -->
-                <section id="charts-row" class="grid grid-cols-1 md:grid-cols-5 gap-6">
-                    <!-- Spending by Category -->
-                    <div class="md:col-span-2 bg-neutral-800 p-6 rounded-lg shadow-xl">
-                        <h2 class="text-xl font-bold mb-4 text-neutral-100">Spending by Category</h2>
-                        <div id="donut-chart-container" class="flex flex-col items-center">
-                            <div id="donut-chart" class="w-48 h-48 rounded-full"></div>
-                            <div id="donut-legend" class="w-full mt-4 space-y-2"></div>
-                        </div>
-                    </div>
-                    <!-- Income vs Expenses -->
-                    <div class="md:col-span-3 bg-neutral-800 p-6 rounded-lg shadow-xl">
-                        <h2 class="text-xl font-bold mb-6 text-neutral-100">Income vs Expenses</h2>
-                        <div id="bar-chart-container" class="w-full h-80 flex justify-around items-end space-x-2 md:space-x-4 px-2"></div>
-                        <div class="flex justify-center space-x-4 mt-4">
-                            <div class="flex items-center"><span class="w-3 h-3 bg-green-500 rounded-full mr-2"></span><span class="text-sm text-neutral-400">Income</span></div>
-                            <div class="flex items-center"><span class="w-3 h-3 bg-red-500 rounded-full mr-2"></span><span class="text-sm text-neutral-400">Expenses</span></div>
-                        </div>
-                    </div>
-                </section>
+            <!-- Main grid (Charts + Actions) -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
-                <!-- Transaction History -->
-                <section id="transaction-history" class="bg-neutral-800 p-6 rounded-lg shadow-xl">
-                    <div class="flex flex-col md:flex-row justify-between items-center mb-4">
-                        <h2 class="text-xl font-bold text-neutral-100 mb-4 md:mb-0">Transaction History</h2>
-                        <div class="flex w-full md:w-auto space-x-2">
-                            <input type="search" id="search-tx" placeholder="Search transactions..." class="w-full md:w-auto px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <select id="filter-tx-type" class="px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="all">All</option><option value="income">Income</option><option value="expense">Expense</option>
-                            </select>
+                <!-- Left Column (Charts) -->
+                <div class="lg:col-span-2 flex flex-col gap-6">
+                    
+                    <!-- Income/Expense Pie Chart -->
+                    <div class="bg-slate-800 p-5 rounded-xl shadow-lg">
+                        <h2 class="text-xl font-semibold text-white mb-4">Income vs Expenses</h2>
+                        <div class="chart-container" style="height: 300px;">
+                            <canvas id="pie-chart"></canvas>
                         </div>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-neutral-700">
-                            <thead>
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-neutral-400 uppercase tracking-wider">Date</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-neutral-400 uppercase tracking-wider">Description</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-neutral-400 uppercase tracking-wider">Category</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-neutral-400 uppercase tracking-wider">Amount</th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-neutral-400 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="transaction-table-body" class="bg-neutral-800 divide-y divide-neutral-700">
-                                <tr><td colspan="5" class="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 text-center">No transactions found.</td></tr>
-                            </tbody>
-                        </table>
+
+                    <!-- Income vs Expenses Bar Chart -->
+                    <div class="bg-slate-800 p-5 rounded-xl shadow-lg">
+                        <h2 class="text-xl font-semibold text-white mb-4">Income vs Expenses (Monthly)</h2>
+                        <div class="chart-container" style="height: 300px;">
+                            <canvas id="bar-chart"></canvas>
+                        </div>
                     </div>
-                </section>
-            </div>
-            <!-- Right Sidebar -->
-            <div class="lg:col-span-1 space-y-6">
-                <section id="quick-actions" class="bg-neutral-800 p-6 rounded-lg shadow-xl">
-                    <h2 class="text-xl font-bold mb-4 text-neutral-100">Quick Actions</h2>
-                    <div class="space-y-3">
-                        <button id="open-modal-button" class="w-full flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition duration-200">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
-                            Add New Transaction
+                </div>
+
+                <!-- Right Column (Quick Actions) -->
+                <div class="bg-slate-800 p-5 rounded-xl shadow-lg h-fit">
+                    <h2 class="text-xl font-semibold text-white mb-4">Quick Actions</h2>
+                    <div class="flex flex-col space-y-3">
+                        <button id="add-transaction-btn-quick" class="w-full flex items-center justify-start text-left p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                            <svg class="w-6 h-6 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            <div>
+                                <div class="font-medium text-white">Add New Transaction</div>
+                                <div class="text-sm text-blue-100">Record income or expense</div>
+                            </div>
                         </button>
-                        <button id="sync-drive-button" class="w-full flex items-center bg-neutral-700 hover:bg-neutral-600 text-neutral-200 font-semibold py-3 px-4 rounded-lg transition duration-200">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M15.59 13.41a.75.75 0 010 1.06l-5.3 5.3a.75.75 0 01-1.06 0l-5.3-5.3a.75.75 0 011.06-1.06l4.22 4.22V6.24a.75.75 0 111.5 0v11.39l4.22-4.22a.75.75 0 011.06 0zM4.75 3.5a.75.75 0 010-1.06l5.3-5.3a.75.75 0 011.06 0l5.3 5.3a.75.75 0 01-1.06 1.06L11.19-.78v11.39a.75.75 0 11-1.5 0V-.78L5.81 3.5a.75.75 0 01-1.06 0z" clip-rule="evenodd" transform="rotate(90 10 10)" /></svg>
-                            Sync with Drive
+                        
+                        <button id="sync-button" class="w-full flex items-center justify-start text-left p-4 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
+                            <svg class="w-6 h-6 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0 0v-4.992m0 4.992h-4.993" />
+                            </svg>
+                            <div>
+                                <div class="font-medium text-white">Sync with Drive</div>
+                                <div id="sync-status" class="text-sm text-slate-300">Last sync: Never</div>
+                            </div>
                         </button>
-                    </div>
-                </section>
-            </div>
-        </main>
-    </div>
+                        
+                        <button id="change-file-button" class="w-full flex items-center justify-start text-left p-4 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
+                             <svg class="w-6 h-6 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                            <div>
+                                <div class="font-medium text-white">Change Google Sheet</div>
+                                <div class="text-sm text-slate-300">Pick a different file</div>
+                            </div>
+                        </button>
 
-    <!-- Add Transaction Modal -->
-    <div id="transaction-modal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden opacity-0">
-        <div class="modal-content bg-neutral-800 w-full max-w-md p-6 rounded-lg shadow-xl transform -translate-y-10">
-            <!-- (Modal HTML is identical) -->
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-bold text-neutral-100">Add Transaction</h2>
-                <button type="button" id="close-modal-button" class="text-neutral-500 hover:text-neutral-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-            </div>
-            <p class="text-sm text-neutral-400 mb-6">Record a new income or expense transaction</p>
-            <form id="transaction-form">
-                <div class="flex space-x-4 mb-4">
-                    <div class="w-1/2">
-                        <label for="tx-date" class="block text-sm font-medium text-neutral-300 mb-1">Date</label>
-                        <input type="date" id="tx-date" class="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                    </div>
-                    <div class="w-1/2">
-                        <label for="tx-type" class="block text-sm font-medium text-neutral-300 mb-1">Type</label>
-                        <select id="tx-type" class="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                            <option value="expense">Expense</option><option value="income">Income</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="mb-4">
-                    <label for="tx-amount" class="block text-sm font-medium text-neutral-300 mb-1">Amount ($)</label>
-                    <input type="number" id="tx-amount" step="0.01" min="0.01" placeholder="0.00" class="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                </div>
-                <div id="category-field-container" class="mb-4">
-                    <label for="tx-category" class="block text-sm font-medium text-neutral-300 mb-1">Category</label>
-                    <select id="tx-category" class="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                        <option value="">Select category</option>
-                    </select>
-                </div>
-                <div class="mb-6">
-                    <label for="tx-description" class="block text-sm font-medium text-neutral-300 mb-1">Description</label>
-                    <textarea id="tx-description" placeholder="Enter transaction details..." rows="3" class="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                </div>
-                <div class="flex justify-end space-x-4">
-                    <button type="button" id="cancel-modal-button" class="bg-neutral-600 hover:bg-neutral-500 text-neutral-200 font-bold py-2 px-4 rounded-lg transition duration-200">
-                        Cancel
-                    </button>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
-                        Add Transaction
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-10 right-10 bg-green-600 text-white py-3 px-6 rounded-lg shadow-xl opacity-0 transition-opacity duration-300 z-50">
-        <p id="toast-message">Success!</p>
-    </div>
-
-
-    <!-- Main Application Script -->
-    <script type="module">
-        // === CONFIGURATION ===
-        // NEW: Added Sheets API Scope and updated file name logic
-        const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
-        const FINANCE_FILE_NAME = 'MyFinanceAppSheet'; // This is now a Google Sheet
-        const TRANSACTIONS_SHEET = 'Transactions';
-        const CATEGORIES_SHEET = 'Categories';
-        const CATEGORY_COLORS = ['#3b82f6', '#10b981', '#a855f7', '#f59e0b', '#ef4444', '#6b7280', '#ec4899', '#84cc16'];
-        
-        // === APP STATE ===
-        let gapiClient;
-        let tokenClient;
-        let googleClientId = '389870736002-b67o7o52m7u47ra7m97epoud9lk55oic.apps.googleusercontent.com'; // Hardcoded Client ID
-        let transactions = []; // Our local database
-        let categories = ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Salary', 'Other']; // Default categories
-        let financeFileId = null; // Google Drive File ID (this is now a Spreadsheet ID)
-        let isSaving = false; // Debounce saving
-        let searchFilter = '';
-        let typeFilter = 'all';
-
-        // === DOM ELEMENTS ===
-        // (All DOM elements are the same as before)
-        const authorizeButton = document.getElementById('authorize-button');
-        const signoutButton = document.getElementById('signout-button');
-        const userProfile = document.getElementById('user-profile');
-        const loadingState = document.getElementById('loading-state');
-        const mainContent = document.getElementById('main-content');
-        const openModalButton = document.getElementById('open-modal-button');
-        const closeModalButton = document.getElementById('close-modal-button');
-        const cancelModalButton = document.getElementById('cancel-modal-button');
-        const transactionModal = document.getElementById('transaction-modal');
-        const transactionForm = document.getElementById('transaction-form');
-        const syncDriveButton = document.getElementById('sync-drive-button');
-        const txType = document.getElementById('tx-type');
-        const txDate = document.getElementById('tx-date');
-        const txDescription = document.getElementById('tx-description');
-        const txCategory = document.getElementById('tx-category');
-        const txCategoryContainer = document.getElementById('category-field-container');
-        const txAmount = document.getElementById('tx-amount');
-        const totalIncomeEl = document.getElementById('total-income');
-        const totalExpenseEl = document.getElementById('total-expense');
-        const currentBalanceEl = document.getElementById('current-balance');
-        const savingsRateEl = document.getElementById('savings-rate');
-        const incomeTrendEl = document.getElementById('income-trend');
-        const expenseTrendEl = document.getElementById('expense-trend');
-        const balanceTrendEl = document.getElementById('balance-trend');
-        const savingsTrendEl = document.getElementById('savings-trend');
-        const donutChart = document.getElementById('donut-chart');
-        const donutLegend = document.getElementById('donut-legend');
-        const barChartContainer = document.getElementById('bar-chart-container');
-        const transactionTableBody = document.getElementById('transaction-table-body');
-        const searchTxInput = document.getElementById('search-tx');
-        const filterTxTypeSelect = document.getElementById('filter-tx-type');
-        const toast = document.getElementById('toast');
-        const toastMessage = document.getElementById('toast-message');
-
-        // === INITIALIZATION ===
-        window.onload = () => {
-            loadGapiScript();
-            loadGisScript();
-            // (Event listeners are identical)
-            searchTxInput.addEventListener('input', (e) => {
-                searchFilter = e.target.value.toLowerCase();
-                renderTransactionTable();
-            });
-            filterTxTypeSelect.addEventListener('change', (e) => {
-                typeFilter = e.target.value;
-                renderTransactionTable();
-            });
-            transactionTableBody.addEventListener('click', (e) => {
-                const deleteButton = e.target.closest('.delete-tx-button');
-                if (deleteButton) {
-                    const id = deleteButton.dataset.txId;
-                    handleDeleteTransaction(id);
-                }
-            });
-            syncDriveButton.addEventListener('click', () => {
-                syncDataToSheet(); // REPLACED saveFileToDrive
-            });
-            txType.addEventListener('change', () => {
-                if (txType.value === 'expense') {
-                    txCategoryContainer.classList.remove('hidden');
-                    txCategory.required = true;
-                } else {
-                    txCategoryContainer.classList.add('hidden');
-                    txCategory.required = false;
-                }
-            });
-        };
-
-        // === GOOGLE AUTH & API ===
-
-        /**
-         * Load GAPI (Google API Client Library)
-         */
-        function loadGapiScript() {
-            const script = document.createElement('script');
-            script.src = 'https://apis.google.com/js/api.js';
-            script.onload = () => gapi.load('client', initializeGapiClient); // Load 'client'
-            document.body.appendChild(script);
-        }
-
-        /**
-         * NEW: Initialize GAPI client for BOTH Drive and Sheets
-         */
-        async function initializeGapiClient() {
-            try {
-                // Load both Drive (to find/create file) and Sheets (to read/write data)
-                await gapi.client.load('drive', 'v3');
-                await gapi.client.load('sheets', 'v4');
-                gapiClient = gapi.client; // gapiClient.drive and gapiClient.sheets are now available
-                authorizeButton.disabled = false;
-            } catch (error) {
-                console.error('Error initializing GAPI client', error);
-                showToast('Error initializing Google API', 'error');
-            }
-        }
-
-        /**
-         * Load GIS (Google Identity Services)
-         */
-        function loadGisScript() {
-            const script = document.createElement('script');
-            script.src = 'https://accounts.google.com/gsi/client';
-            script.onload = initializeGisClient;
-            document.body.appendChild(script);
-        }
-
-        /**
-         * Initialize GIS client - NEW: Updated SCOPES
-         */
-        function initializeGisClient() {
-            try {
-                tokenClient = google.accounts.oauth2.initTokenClient({
-                    client_id: googleClientId,
-                    scope: SCOPES, // Use new scope
-                    callback: tokenCallback,
-                });
-            } catch (error) {
-                console.error('Error initializing GIS client', error);
-                showToast('Google Auth client error', 'error');
-            }
-        }
-        
-        /**
-         * Callback after user grants permission
-         */
-        async function tokenCallback(tokenResponse) {
-            if (tokenResponse && tokenResponse.access_token) {
-                gapi.client.setToken(tokenResponse);
-                updateUiForAuth();
-                await loadAppdata(); // This function is now different
-            }
-        }
-
-        // --- Auth Button Handlers (identical) ---
-        authorizeButton.addEventListener('click', () => {
-            if (!gapiClient) { showToast('Google API not loaded', 'error'); return; }
-            if (!tokenClient) { showToast('Google Auth not loaded', 'error'); return; }
-            if (gapi.client.getToken() === null) {
-                tokenClient.requestAccessToken({ prompt: 'consent' });
-            } else {
-                tokenClient.requestAccessToken({ prompt: '' });
-            }
-        });
-        signoutButton.addEventListener('click', () => {
-            const token = gapi.client.getToken();
-            if (token !== null) {
-                google.accounts.oauth2.revoke(token.access_token, () => {
-                    gapi.client.setToken(null);
-                    updateUiForSignOut();
-                });
-            }
-        });
-
-        // --- Auth UI Updates (identical) ---
-        function updateUiForAuth() { /* ... */ }
-        function updateUiForSignOut() { /* ... */ }
-        
-        // === GOOGLE DRIVE & SHEETS FILE HANDLING (ALL NEW LOGIC) ===
-
-        /**
-         * NEW: Main function to load app data from Google Sheet
-         */
-        async function loadAppdata() {
-            showToast('Loading data from Google Drive...', 'loading');
-            try {
-                // 1. Find the file
-                const file = await findFinanceFile();
-                
-                if (file) {
-                    // 2. File exists, get its ID
-                    financeFileId = file.id;
-                    showToast('Finance sheet found. Loading data...', 'loading');
-                } else {
-                    // 3. File doesn't exist, create it
-                    showToast('No finance sheet found. Creating new one...', 'loading');
-                    financeFileId = await createGoogleSheet();
-                    showToast('New finance sheet created.', 'success');
-                }
-                
-                // 4. Load data from the sheet
-                await loadSheetData(financeFileId);
-                
-                // 5. Render the UI
-                renderAll();
-                showToast('Data loaded successfully!', 'success');
-
-            } catch (error) {
-                console.error('Error loading app data:', error);
-                showToast(`Error: ${error.message || 'Could not load data.'}`, 'error');
-                updateUiForSignOut();
-            }
-        }
-
-        /**
-         * NEW: Search for the Google Sheet (not .xlsx)
-         */
-        async function findFinanceFile() {
-            try {
-                const response = await gapi.client.drive.files.list({
-                    // Use Google Sheet mimeType
-                    q: `name='${FINANCE_FILE_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
-                    fields: 'files(id, name)',
-                });
-                return response.result.files.length > 0 ? response.result.files[0] : null;
-            } catch (error) {
-                console.error('Error finding file:', error);
-                throw new Error('Could not search for finance sheet.');
-            }
-        }
-
-        /**
-         * NEW: Create a new, formatted Google Sheet
-         */
-        async function createGoogleSheet() {
-             try {
-                // 1. Create the spreadsheet
-                const sheetResponse = await gapi.client.sheets.spreadsheets.create({
-                    resource: {
-                        properties: { title: FINANCE_FILE_NAME },
-                        sheets: [
-                            { properties: { title: TRANSACTIONS_SHEET } },
-                            { properties: { title: CATEGORIES_SHEET } }
-                        ]
-                    }
-                });
-                
-                const spreadsheetId = sheetResponse.result.spreadsheetId;
-
-                // 2. Add headers and default categories
-                const headers = [['Date', 'Description', 'Category', 'Amount', 'Type']];
-                const defaultCategoriesData = categories.map(c => [c]); // Must be array of arrays
-                
-                await gapi.client.sheets.spreadsheets.values.batchUpdate({
-                    spreadsheetId: spreadsheetId,
-                    resource: {
-                        valueInputOption: 'RAW',
-                        data: [
-                            { range: `${TRANSACTIONS_SHEET}!A1:E1`, values: headers },
-                            { range: `${CATEGORIES_SHEET}!A1`, values: defaultCategoriesData }
-                        ]
-                    }
-                });
-                
-                return spreadsheetId;
-            } catch (error) {
-                console.error('Error creating file:', error);
-                throw new Error('Could not create new Google Sheet.');
-            }
-        }
-        
-        /**
-         * NEW: Read data from the Google Sheet
-         */
-        async function loadSheetData(spreadsheetId) {
-            try {
-                const response = await gapi.client.sheets.spreadsheets.values.batchGet({
-                    spreadsheetId: spreadsheetId,
-                    ranges: [
-                        `${TRANSACTIONS_SHEET}!A2:E`, // Get all data rows (skip header)
-                        `${CATEGORIES_SHEET}!A1:A`  // Get all categories
-                    ]
-                });
-                
-                const valueRanges = response.result.valueRanges;
-                
-                // Parse Transactions
-                const txValues = valueRanges[0].values;
-                if (txValues && txValues.length > 0) {
-                    transactions = txValues.map((row, index) => ({
-                        id: index,
-                        date: row[0] ? new Date(row[0]).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                        description: row[1] || 'No Description',
-                        category: row[2] || 'Other',
-                        amount: parseFloat(row[3]) || 0,
-                        type: row[4] || 'expense'
-                    }));
-                } else {
-                    transactions = [];
-                }
-                
-                // Parse Categories
-                const catValues = valueRanges[1].values;
-                if (catValues && catValues.length > 0) {
-                    categories = catValues.map(row => row[0]).filter(Boolean);
-                }
-                // Ensure default categories are present if sheet is empty
-                if (categories.length === 0) {
-                     categories = ['Food', 'Transport', 'Utilities', 'Entertainment', 'Shopping', 'Salary', 'Other'];
-                }
-                
-            } catch (error) {
-                 console.error('Error reading sheet data:', error);
-                 throw new Error('Could not read data from Google Sheet.');
-            }
-        }
-        
-        /**
-         * NEW: Syncs local state TO the Google Sheet (overwrites data)
-         */
-        async function syncDataToSheet() {
-            if (isSaving) return;
-            if (!financeFileId) {
-                console.error('No Spreadsheet ID to save to.');
-                return;
-            }
-            
-            isSaving = true;
-            showToast('Syncing to Google Sheet...', 'loading');
-            
-            try {
-                // 1. Convert local `transactions` array to array-of-arrays for the sheet
-                const dataForSheet = transactions.map(tx => [
-                    tx.date,
-                    tx.description,
-                    tx.category,
-                    tx.amount,
-                    tx.type
-                ]);
-                
-                // 2. Clear all existing data from A2 (after header) downwards
-                await gapi.client.sheets.spreadsheets.values.clear({
-                    spreadsheetId: financeFileId,
-                    range: `${TRANSACTIONS_SHEET}!A2:E`
-                });
-                
-                // 3. Update the sheet with the new data (if any)
-                if (dataForSheet.length > 0) {
-                    await gapi.client.sheets.spreadsheets.values.update({
-                        spreadsheetId: financeFileId,
-                        range: `${TRANSACTIONS_SHEET}!A2`,
-                        valueInputOption: 'USER_ENTERED', // 'USER_ENTERED' parses dates correctly
-                        resource: {
-                            values: dataForSheet
-                        }
-                    });
-                }
-                
-                showToast('Data synced successfully!', 'success');
-                
-            } catch (error) {
-                console.error('Error saving file:', error);
-                showToast('Error syncing data. Changes may be lost.', 'error');
-            } finally {
-                isSaving = false;
-            }
-        }
-
-        // === EXCEL FILE HANDLING (SheetJS) ===
-        // ALL REMOVED (parseExcelFile, generateExcelData)
-
-        // === APPLICATION LOGIC & UI RENDERING ===
-
-        /**
-         * Re-render all UI components (identical)
-         */
-        function renderAll() {
-            try {
-                transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-                transactions.forEach((tx, index) => tx.id = index);
-                renderDashboard();
-                renderTransactionTable();
-                renderCategoryChart();
-                renderIncomeExpenseChart();
-            } catch (e) {
-                console.error("Error rendering UI:", e);
-                showToast('Failed to update UI', 'error');
-            }
-        }
-        
-        // (All other rendering functions are identical)
-        // getTrendHtml, getPercentChange, getTotals, renderDashboard,
-        // renderTransactionTable, renderCategoryChart, renderIncomeExpenseChart
-        function getTrendHtml(percent) {
-            if (percent > 0) {
-                return `<span class="flex items-center text-green-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clip-rule="evenodd" /></svg>
-                    ${percent.toFixed(1)}% vs last month
-                </span>`;
-            } else if (percent < 0) {
-                 return `<span class="flex items-center text-red-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1.707-7.293l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 111.414-1.414L9 10.586V7a1 1 0 112 0v3.586l1.293-1.293a1 1 0 111.414 1.414z" clip-rule="evenodd" /></svg>
-                    ${Math.abs(percent).toFixed(1)}% vs last month
-                </span>`;
-            } else {
-                return `<span class="text-neutral-500">No change vs last month</span>`;
-            }
-        }
-        function getPercentChange(current, previous) {
-            if (previous === 0) { return current > 0 ? 100.0 : 0.0; }
-            return ((current - previous) / previous) * 100;
-        }
-        function getTotals(txs, daysAgoStart, daysAgoEnd) {
-            const now = new Date();
-            const start = new Date(now.getTime() - daysAgoStart * 24 * 60 * 60 * 1000);
-            const end = new Date(now.getTime() - daysAgoEnd * 24 * 60 * 60 * 1000);
-            let income = 0, expense = 0;
-            for (const t of txs) {
-                const txDate = new Date(t.date);
-                if (txDate >= end && txDate < start) {
-                    if (t.type === 'income') income += t.amount;
-                    if (t.type === 'expense') expense += t.amount;
-                }
-            }
-            return { income, expense };
-        }
-        function renderDashboard() {
-            const current = getTotals(transactions, 0, 30);
-            const previous = getTotals(transactions, 30, 60);
-            const balance = current.income - current.expense;
-            const prevBalance = previous.income - previous.expense;
-            const savingsRate = current.income > 0 ? ((current.income - current.expense) / current.income) * 100 : 0;
-            const prevSavingsRate = previous.income > 0 ? ((previous.income - previous.expense) / previous.income) * 100 : 0;
-            totalIncomeEl.textContent = formatCurrency(current.income);
-            totalExpenseEl.textContent = formatCurrency(current.expense);
-            currentBalanceEl.textContent = formatCurrency(balance);
-            savingsRateEl.textContent = `${savingsRate.toFixed(1)}%`;
-            incomeTrendEl.innerHTML = getTrendHtml(getPercentChange(current.income, previous.income));
-            expenseTrendEl.innerHTML = getTrendHtml(getPercentChange(current.expense, previous.expense) * -1);
-            balanceTrendEl.innerHTML = getTrendHtml(getPercentChange(balance, prevBalance));
-            savingsTrendEl.innerHTML = getTrendHtml(getPercentChange(savingsRate, prevSavingsRate));
-        }
-        function renderTransactionTable() {
-            const filteredTx = transactions.filter(tx => {
-                const matchesSearch = tx.description.toLowerCase().includes(searchFilter) || tx.category.toLowerCase().includes(searchFilter);
-                const matchesType = typeFilter === 'all' || tx.type === typeFilter;
-                return matchesSearch && matchesType;
-            });
-            if (filteredTx.length === 0) {
-                transactionTableBody.innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-sm text-neutral-500 text-center">No transactions match.</td></tr>`;
-                return;
-            }
-            transactionTableBody.innerHTML = filteredTx.map(tx => {
-                const isExpense = tx.type === 'expense';
-                const amountColor = isExpense ? 'text-red-400' : 'text-green-400';
-                const amountSign = isExpense ? '-' : '+';
-                return `
-                    <tr class="hover:bg-neutral-700">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-200">${tx.date}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-200">${tx.description}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-neutral-400">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-500/20 text-blue-300">${tx.category}</span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium ${amountColor}">${amountSign}${formatCurrency(tx.amount)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
-                            <button class="delete-tx-button text-neutral-500 hover:text-red-400" data-tx-id="${tx.id}">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-        function renderCategoryChart() {
-            const expenseData = transactions.filter(t => t.type === 'expense').reduce((acc, t) => {
-                acc[t.category] = (acc[t.category] || 0) + t.amount;
-                return acc;
-            }, {});
-            const categories = Object.keys(expenseData);
-            const amounts = Object.values(expenseData);
-            const totalExpenses = amounts.reduce((sum, a) => sum + a, 0);
-            if (totalExpenses === 0) {
-                donutChart.style.background = '#404040';
-                donutLegend.innerHTML = `<p class="text-neutral-500 text-center">No expense data.</p>`;
-                return;
-            }
-            let gradientString = 'conic-gradient(from 0deg, ';
-            let legendHtml = '';
-            let cumulativePercent = 0;
-            categories.forEach((category, index) => {
-                const amount = amounts[index];
-                const percentage = (amount / totalExpenses) * 100;
-                const color = CATEGORY_COLORS[index % CATEGORY_COLORS.length];
-                gradientString += `${color} ${cumulativePercent}% ${cumulativePercent + percentage}%, `;
-                legendHtml += `
-                    <div class="flex items-center justify-between text-sm">
-                        <div class="flex items-center"><span class="w-3 h-3 rounded-full mr-2" style="background-color: ${color}"></span><span class="text-neutral-300">${category}</span></div>
-                        <span class="font-medium text-neutral-400">${percentage.toFixed(1)}%</span>
-                    </div>`;
-                cumulativePercent += percentage;
-            });
-            const finalGradient = gradientString.slice(0, -2) + ')';
-            donutChart.style.background = '#404040';
-            setTimeout(() => { donutChart.style.background = finalGradient; }, 10);
-            donutLegend.innerHTML = legendHtml;
-        }
-        function renderIncomeExpenseChart() {
-            const months = 6;
-            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            const monthlyData = [];
-            const today = new Date();
-            for (let i = months - 1; i >= 0; i--) {
-                const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                monthlyData.push({ month: monthNames[date.getMonth()], year: date.getFullYear(), income: 0, expense: 0 });
-            }
-            for (const t of transactions) {
-                const txDate = new Date(t.date);
-                const dataPoint = monthlyData.find(m => m.month === monthNames[txDate.getMonth()] && m.year === txDate.getFullYear());
-                if (dataPoint) {
-                    if (t.type === 'income') dataPoint.income += t.amount;
-                    if (t.type === 'expense') dataPoint.expense += t.amount;
-                }
-            }
-            const maxVal = Math.max(1, ...monthlyData.map(m => m.income), ...monthlyData.map(m => m.expense));
-            barChartContainer.innerHTML = monthlyData.map(m => {
-                const incomeHeight = (m.income / maxVal) * 100;
-                const expenseHeight = (m.expense / maxVal) * 100;
-                return `
-                    <div class="flex flex-col h-full w-full items-center justify-end">
-                        <div class="flex items-end w-full h-full justify-center space-x-1">
-                            <div class="w-full bg-green-500 rounded-t-sm chart-bar" style="height: 0%" data-final-height="${incomeHeight}" title="Income: ${formatCurrency(m.income)}"></div>
-                            <div class="w-full bg-red-500 rounded-t-sm chart-bar" style="height: 0%" data-final-height="${expenseHeight}" title="Expense: ${formatCurrency(m.expense)}"></div>
-                        </div>
-                        <span class="text-xs text-neutral-400 mt-2">${m.month}</span>
-                    </div>`;
-            }).join('');
-            setTimeout(() => {
-                barChartContainer.querySelectorAll('.chart-bar').forEach(bar => {
-                    bar.style.height = `${bar.dataset.finalHeight}%`;
-                });
-            }, 10);
-        }
-        
-        /**
-         * Handle new transaction form submission
-         * NEW: This now ONLY updates the local state.
-         */
-        function handleAddTransaction(e) {
-            e.preventDefault();
-            
-            const newTransaction = {
-                id: transactions.length, // Simple temporary ID
-                date: txDate.value,
-                description: txDescription.value.trim() || 'No Description',
-                category: txType.value === 'income' ? 'Income' : txCategory.value.trim(),
-                amount: parseFloat(txAmount.value),
-                type: txType.value
-            };
-            
-            transactions.push(newTransaction);
-            renderAll();
-            hideTransactionModal();
-            
-            // NOTE: We no longer save immediately. User must click "Sync".
-            // This makes adding/deleting much faster.
-            showToast('Transaction added locally. Click "Sync" to save.', 'success');
-        }
-        
-        /**
-         * Handle delete transaction
-         * NEW: This now ONLY updates the local state.
-         */
-        function handleDeleteTransaction(id) {
-            const index = transactions.findIndex(tx => tx.id == id);
-            if (index > -1) {
-                transactions.splice(index, 1);
-                renderAll();
-                // NOTE: We no longer save immediately. User must click "Sync".
-                showToast('Transaction removed locally. Click "Sync" to save.', 'success');
-            }
-        }
-        
-        // === MODAL HANDLING (identical) ===
-        function showTransactionModal() {
-            transactionForm.reset();
-            txDate.value = new Date().toISOString().split('T')[0];
-            
-            if (txType.value === 'expense') {
-                txCategoryContainer.classList.remove('hidden');
-                txCategory.required = true;
-            } else {
-                txCategoryContainer.classList.add('hidden');
-                txCategory.required = false;
-            }
-
-            txCategory.innerHTML = '<option value="">Select category</option>';
-            const expenseCategories = categories.filter(c => c.toLowerCase() !== 'salary' && c.toLowerCase() !== 'income');
-            expenseCategories.forEach(cat => {
-                const option = document.createElement('option');
-                option.value = cat;
-                option.textContent = cat;
-                txCategory.appendChild(option);
-            });
-
-            transactionModal.classList.remove('hidden');
-            setTimeout(() => {
-                transactionModal.classList.remove('opacity-0');
-                transactionModal.querySelector('.modal-content').classList.remove('-translate-y-10');
-            }, 10);
-        }
-        function hideTransactionModal() {
-            transactionModal.classList.add('opacity-0');
-            transactionModal.querySelector('.modal-content').classList.add('-translate-y-10');
-            setTimeout(() => {
-                transactionModal.classList.add('hidden');
-            }, 250);
-        }
-        openModalButton.addEventListener('click', showTransactionModal);
-        closeModalButton.addEventListener('click', hideTransactionModal);
-        cancelModalButton.addEventListener('click', hideTransactionModal);
-mgr
-        transactionForm.addEventListener('submit', handleAddTransaction);
-        
-        
-        // === UTILITIES (identical) ===
-        function formatCurrency(amount) {
-            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-        }
-        let toastTimeout;
-        function showToast(message, type = 'success') {
-            clearTimeout(toastTimeout);
-            toastMessage.textContent = message;
-            toast.classList.remove('bg-green-600', 'bg-red-600', 'bg-blue-600');
-            if (type === 'error') toast.classList.add('bg-red-600');
-            else if (type === 'loading') toast.classList.add('bg-blue-600');
-            else toast.classList.add('bg-green-600');
-            toast.classList.remove('opacity-0');
-            if (type !== 'loading') {
-                toastTimeout = setTimeout(() => { toast.classList.add('opacity-0'); }, 3000);
-            }
-        }
-        const originalShowToast = showToast;
-        showToast = (message, type) => {
-            if (type !== 'loading' && toast.classList.contains('bg-blue-600')) {
-                toast.classList.add('opacity-0');
-            }
-            setTimeout(() => originalShowToast(message, type), 50);
-        }
-        
-        // (Identical Auth UI functions)
-        updateUiForAuth = () => {
-            authorizeButton.classList.add('hidden');
-            signoutButton.classList.remove('hidden');
-            userProfile.classList.remove('hidden');
-            loadingState.classList.add('hidden');
-            mainContent.classList.remove('hidden');
-        }
-        updateUiForSignOut = () => {
-            authorizeButton.classList.remove('hidden');
-            signoutButton.classList.add('hidden');
-            userProfile.classList.add('hidden');
-            loadingState.classList.remove('hidden');
-            mainContent.classList.add('hidden');
-            transactions = [];
-            financeFileId = null;
-            renderAll();
-        }
-
-    </script>
-</body>
-</html>
+                        <button id="settings-button" class="w-full flex items-center justify-start text-left p-4 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
+                            <svg class="w-6 h-6 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                
