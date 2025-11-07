@@ -202,7 +202,7 @@
             <div class="flex justify-between items-center p-5 border-b border-slate-700">
                 <h3 id="modal-title" class="text-xl font-semibold text-white">Add Transaction</h3>
                 <button id="modal-close-btn" class="text-slate-400 hover:text-white">
-                    <svg class="w-6 h-6" ...><path ... /></svg>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
             <!-- Modal Body -->
@@ -253,7 +253,7 @@
             <div class="flex justify-between items-center p-5 border-b border-slate-700">
                 <h3 class="text-xl font-semibold text-white">Manage Categories</h3>
                 <button id="category-modal-close-btn" class="text-slate-400 hover:text-white">
-                    <svg class="w-6 h-6" ...><path ... /></svg>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
             <!-- Modal Body -->
@@ -272,7 +272,7 @@
     </div>
 
     <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-green-500 text-white px-5 py-3 rounded-lg shadow-xl text-sm font-medium transform translate-x-full opacity-0 transition-all duration-300 ease-out hidden">
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-500 text-white px-5 py-3 rounded-lg shadow-xl text-sm font-medium opacity-0 transition-all duration-300 ease-out hidden" style="transform: translateX(110%);">
         <span id="toast-message">Success!</span>
     </div>
     
@@ -305,7 +305,7 @@
 
     <!-- 
       ===============================================================
-      FIX: Main application script moved *ABOVE* Google API scripts
+      Main application script
       ===============================================================
     -->
     <script>
@@ -323,6 +323,10 @@
         let CLIENT_ID = localStorage.getItem(CLIENT_ID_KEY) || null;
         let PICKER_API_KEY = localStorage.getItem(API_KEY_KEY) || null;
         
+        // --- NEW SCOPE ---
+        // Added 'userinfo.profile' to get the user's name
+        const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile';
+
         let tokenClient;
         window.gapiInited = false;
         window.gisInited = false;
@@ -491,7 +495,7 @@
             try {
                 tokenClient = google.accounts.oauth2.initTokenClient({
                     client_id: CLIENT_ID, // Use variable
-                    scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets',
+                    scope: SCOPES, // Use new scope
                     callback: '', // Callback is set dynamically
                 });
             } catch (err) {
@@ -536,17 +540,18 @@
         async function initializeApp() {
             showLoader('Loading Google APIs...');
             try {
-                // Load Sheets and Drive APIs
+                // Load Sheets, Drive, and UserInfo APIs
                 await gapi.client.load('https://sheets.googleapis.com/$discovery/rest?version=v4');
                 await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
                 
+                // --- NEW METHOD FOR GETTING USER INFO ---
+                // This uses the 'userinfo.profile' scope and does not require the People API
                 showLoader('Accessing user profile...');
-                // Get user's name
                 const profileResponse = await gapi.client.request({
-                    'path': 'https://people.googleapis.com/v1/people/me?personFields=names'
+                    'path': 'https://www.googleapis.com/oauth2/v2/userinfo'
                 });
-                
-                const userName = profileResponse.result.names[0].displayName;
+
+                const userName = profileResponse.result.name; // 'name' instead of 'names[0].displayName'
                 userNameEl.textContent = `Hello, ${userName}`;
                 userNameEl.classList.remove('hidden');
                 authButton.textContent = 'Sign Out';
@@ -560,8 +565,15 @@
                     await loadAppData();
                 }
             } catch (err) {
+                // --- BETTER ERROR LOGGING ---
                 console.error('Error during app initialization:', err);
-                showToast(`Error: ${err.message || 'Could not load Google APIs.'}`, 'error');
+                let errorMessage = 'Could not load Google APIs.';
+                if (err.result && err.result.error) {
+                    errorMessage = `Error: ${err.result.error.message} (Code: ${err.result.error.status})`;
+                } else if (err.message) {
+                    errorMessage = err.message;
+                }
+                showToast(errorMessage, 'error');
                 hideLoader();
             }
         }
@@ -1224,7 +1236,9 @@
         let toastTimer;
         function showToast(message, type = 'success') {
             toastMessage.textContent = message;
-            toast.classList.remove('bg-green-500', 'bg-red-500', 'translate-x-full', 'opacity-0');
+            // Reset classes
+            toast.classList.remove('bg-green-500', 'bg-red-500', 'opacity-0');
+            toast.style.transform = 'translateX(110%)';
             
             if (type === 'error') {
                 toast.classList.add('bg-red-500');
@@ -1233,15 +1247,21 @@
             }
             
             toast.classList.remove('hidden');
-            // Force browser to notice the class change
+            
+            // Force browser repaint
             void toast.offsetWidth; 
             
-            toast.classList.remove('translate-x-full');
-            toast.classList.add('translate-x-0');
+            // Animate in
+            toast.style.transform = 'translateX(0)';
+            toast.classList.add('opacity-100');
+
 
             clearTimeout(toastTimer);
             toastTimer = setTimeout(() => {
+                toast.style.transform = 'translateX(110%)';
+                toast.classList.remove('opacity-100');
                 toast.classList.add('opacity-0');
+
                 // Hide after transition
                 toast.addEventListener('transitionend', () => {
                     toast.classList.add('hidden');
@@ -1252,11 +1272,11 @@
     
     <!-- 
       ===============================================================
-      FIX: Google API scripts moved *BELOW* main application script
+      Google API scripts
       ===============================================================
     -->
-    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-    <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
 </body>
 </html>
