@@ -60,9 +60,20 @@
             transform: scale(1);
             opacity: 1;
         }
+
+        /* Modal backdrop */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.75);
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-200 font-sans antialiased">
+
+    <!-- Global Loading Overlay -->
+    <div id="global-loader" class="fixed inset-0 bg-slate-900 bg-opacity-80 z-50 flex-col items-center justify-center hidden">
+        <div class="loader ease-linear rounded-full border-8 border-t-8 border-slate-600 h-24 w-24 mb-4"></div>
+        <h2 id="loading-status" class="text-xl font-semibold text-white">Loading...</h2>
+    </div>
 
     <!-- Main Application Wrapper -->
     <div id="app-container" class="min-h-screen">
@@ -98,7 +109,7 @@
                     <div>
                         <div class="text-sm text-slate-400">Current Balance</div>
                         <div id="total-balance" class="text-3xl font-bold text-white mt-1">$0.00</div>
-                        <div id="balance-trend" class="text-sm text-slate-500 mt-1">+0.0% vs last month</div>
+                        <div id="balance-trend" class="text-sm text-green-400 mt-1">+0.0% vs last month</div>
                     </div>
                     <div class="text-blue-400">
                         <svg class="w-12 h-12" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -111,7 +122,7 @@
                     <div>
                         <div class="text-sm text-slate-400">Total Income</div>
                         <div id="total-income" class="text-3xl font-bold text-white mt-1">$0.00</div>
-                        <div id="income-trend" class="text-sm text-slate-500 mt-1">+0.0% vs last month</div>
+                        <div id="income-trend" class="text-sm text-green-400 mt-1">+0.0% vs last month</div>
                     </div>
                     <div class="text-green-400">
                         <svg class="w-12 h-12" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -124,7 +135,7 @@
                     <div>
                         <div class="text-sm text-slate-400">Total Expenses</div>
                         <div id="total-expenses" class="text-3xl font-bold text-white mt-1">$0.00</div>
-                        <div id="expense-trend" class="text-sm text-slate-500 mt-1">+0.0% vs last month</div>
+                        <div id="expense-trend" class="text-sm text-red-400 mt-1">+0.0% vs last month</div>
                     </div>
                     <div class="text-red-400">
                         <svg class="w-12 h-12" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -206,4 +217,1103 @@
 
                         <button id="settings-button" class="w-full flex items-center justify-start text-left p-4 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors">
                             <svg class="w-6 h-6 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-1.003 1.11-1.226.554-.223 1.19-.02 1.634.486M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9 9.563c.32-1.263 1.44-2.263 2.786-2.52 1.346-.258 2.785.29 3.535 1.355m-5.46 5.46c.32 1.263 1.44 2.263 2.786 2.52 1.346.258 2.785-.29 3.535-1.355m-5.46-5.46l5.46 5.46" />
+                            </svg>
+                            <div>
+                                <div class="font-medium text-white">Manage Categories</div>
+                                <div class="text-sm text-slate-300">Add, edit, or remove</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction History -->
+            <section class="bg-slate-800 p-5 rounded-xl shadow-lg">
+                <h2 class="text-xl font-semibold text-white mb-4">Transaction History</h2>
+                
+                <!-- Filters -->
+                <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                    <div class="relative flex-grow">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                            <svg class="w-5 h-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                            </svg>
+                        </span>
+                        <input type="text" id="search-input" placeholder="Search descriptions..." class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <select id="category-filter" class="bg-slate-700 border border-slate-600 text-white rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="All">All Categories</option>
+                    </select>
+                    <select id="type-filter" class="bg-slate-700 border border-slate-600 text-white rounded-lg py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="All">All Types</option>
+                        <option value="Income">Income</option>
+                        <option value="Expense">Expense</option>
+                    </select>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[600px] text-left">
+                        <thead>
+                            <tr class="border-b border-slate-700 text-sm text-slate-400 uppercase">
+                                <th class="py-3 px-4 font-medium">Date</th>
+                                <th class="py-3 px-4 font-medium">Description</th>
+                                <th class="py-3 px-4 font-medium">Category</th>
+                                <th class="py-3 px-4 font-medium text-right">Amount</th>
+                                <th class="py-3 px-4 font-medium text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transaction-table-body">
+                            <!-- Rows will be injected here by JavaScript -->
+                            <!-- Example Row:
+                            <tr class="border-b border-slate-700 hover:bg-slate-700/50">
+                                <td class="py-3 px-4">2025-11-05</td>
+                                <td class="py-3 px-4">Monthly Rent</td>
+                                <td class="py-3 px-4"><span class="bg-slate-700 text-slate-300 text-xs font-medium px-2 py-1 rounded-full">Housing</span></td>
+                                <td class="py-3 px-4 text-right font-medium text-red-400">-$1,500.00</td>
+                                <td class="py-3 px-4 text-center">
+                                    <button class="text-slate-500 hover:text-red-400 transition-colors">
+                                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12.502 0c.342.052.682.107 1.022.166m11.48 0c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12.502 0c.342.052.682.107 1.022.166" /></svg>
+                                    </button>
+                                </td>
+                            </tr>
+                            -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="no-transactions" class="text-center py-10 text-slate-500 hidden">
+                    No transactions found.
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Add/Edit Transaction Modal -->
+    <div id="transaction-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="modal-backdrop fixed inset-0"></div>
+        <div class="bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg z-10">
+            <div class="flex justify-between items-center p-5 border-b border-slate-700">
+                <h3 id="modal-title" class="text-xl font-semibold text-white">Add Transaction</h3>
+                <button id="modal-close-btn" class="text-slate-400 hover:text-white">
+                    <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <form id="transaction-form" class="p-5">
+                <input type="hidden" id="transaction-id">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="transaction-date" class="block text-sm font-medium text-slate-300 mb-1">Date</label>
+                        <input type="date" id="transaction-date" required class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="transaction-type" class="block text-sm font-medium text-slate-300 mb-1">Type</label>
+                        <select id="transaction-type" required class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="Expense">Expense</option>
+                            <option value="Income">Income</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label for="transaction-amount" class="block text-sm font-medium text-slate-300 mb-1">Amount ($)</label>
+                    <input type="number" id="transaction-amount" step="0.01" min="0" required placeholder="0.00" class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div id="category-group" class="mb-4">
+                    <label for="transaction-category" class="block text-sm font-medium text-slate-300 mb-1">Category</label>
+                    <select id="transaction-category" required class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <!-- Categories populated by JS -->
+                    </select>
+                </div>
+                <div class="mb-6">
+                    <label for="transaction-description" class="block text-sm font-medium text-slate-300 mb-1">Description</label>
+                    <textarea id="transaction-description" rows="3" placeholder="Enter transaction details..." class="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-5ax-w-lg z-10" role="document">
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="modal-cancel-btn" class="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">Cancel</button>
+                    <button type="submit" id="modal-submit-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">Add Transaction</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Category Management Modal -->
+    <div id="category-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="modal-backdrop fixed inset-0"></div>
+        <div class="bg-slate-800 rounded-xl shadow-2xl w-full max-w-md z-10">
+            <div class="flex justify-between items-center p-5 border-b border-slate-700">
+                <h3 class="text-xl font-semibold text-white">Manage Categories</h3>
+                <button id="category-modal-close-btn" class="text-slate-400 hover:text-white">
+                    <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-5">
+                <form id="category-form" class="flex gap-3 mb-4">
+                    <input type="text" id="new-category-name" placeholder="New category name" required class="flex-grow bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Add</button>
+                </form>
+                <div id="category-list" class="max-h-60 overflow-y-auto space-y-2 pr-2">
+                    <!-- Category items injected by JS -->
+                    <!-- Example:
+                    <div class="flex justify-between items-center bg-slate-700 p-3 rounded-lg">
+                        <span class="text-white">Housing</span>
+                        <button class="text-slate-400 hover:text-red-400">
+                            <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12.502 0c.342.052.682.107 1.022.166m11.48 0c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12.502 0c.342.052.682.107 1.022.166" /></svg>
+                        </button>
+                    </div>
+                    -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-500 text-white px-5 py-3 rounded-lg shadow-lg hidden transition-all duration-300 translate-x-full">
+        <span id="toast-message">Success!</span>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- HARDCODED CONFIG ---
+            const CLIENT_ID = '389870736002-b67o7o52m7u47ra7m97epoud9lk55oic.apps.googleusercontent.com';
+            const PICKER_API_KEY = 'AIzaSyCKGAY2ui93ggs6_JsF42TkVPE-zrw-Dg0';
+            const SHEET_NAME = 'Transactions';
+            const CATEGORY_SHEET_NAME = 'Categories';
+            const DEFAULT_CATEGORIES = ['Housing', 'Food', 'Transportation', 'Entertainment', 'Shopping', 'Utilities', 'Salary', 'Freelance', 'Other'];
+            const SHEET_FILE_ID_KEY = 'googleSheetFileId';
+            
+            // --- GOOGLE API VARS ---
+            let tokenClient;
+            let gapiInited = false;
+            let gisInited = false;
+            let pickerInited = false;
+            let sheetFileId = localStorage.getItem(SHEET_FILE_ID_KEY) || null;
+
+            // --- APP STATE ---
+            let transactions = [];
+            let categories = [];
+            let pieChartInstance = null;
+            let barChartInstance = null;
+
+            // --- DOM ELEMENTS ---
+            const authButton = document.getElementById('auth-button');
+            const mainContent = document.getElementById('main-content');
+            const userNameEl = document.getElementById('user-name');
+            const globalLoader = document.getElementById('global-loader');
+            const loadingStatus = document.getElementById('loading-status');
+            
+            const totalBalanceEl = document.getElementById('total-balance');
+            const totalIncomeEl = document.getElementById('total-income');
+            const totalExpensesEl = document.getElementById('total-expenses');
+            const savingsRateEl = document.getElementById('savings-rate');
+            const balanceTrendEl = document.getElementById('balance-trend');
+            const incomeTrendEl = document.getElementById('income-trend');
+            const expenseTrendEl = document.getElementById('expense-trend');
+
+            const pieChartEl = document.getElementById('pie-chart');
+            const barChartEl = document.getElementById('bar-chart');
+
+            const addTransactionBtnQuick = document.getElementById('add-transaction-btn-quick');
+            const syncButton = document.getElementById('sync-button');
+            const syncStatusEl = document.getElementById('sync-status');
+            const changeFileButton = document.getElementById('change-file-button');
+            const settingsButton = document.getElementById('settings-button');
+
+            const transactionTableBody = document.getElementById('transaction-table-body');
+            const noTransactionsEl = document.getElementById('no-transactions');
+            const searchInput = document.getElementById('search-input');
+            const categoryFilter = document.getElementById('category-filter');
+            const typeFilter = document.getElementById('type-filter');
+
+            const transactionModal = document.getElementById('transaction-modal');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+            const modalCancelBtn = document.getElementById('modal-cancel-btn');
+            const modalTitle = document.getElementById('modal-title');
+            const transactionForm = document.getElementById('transaction-form');
+            const transactionIdInput = document.getElementById('transaction-id');
+            const transactionDateInput = document.getElementById('transaction-date');
+            const transactionTypeInput = document.getElementById('transaction-type');
+            const transactionAmountInput = document.getElementById('transaction-amount');
+            const transactionCategoryInput = document.getElementById('transaction-category');
+            const transactionDescriptionInput = document.getElementById('transaction-description');
+            const categoryGroup = document.getElementById('category-group');
+            const modalSubmitBtn = document.getElementById('modal-submit-btn');
+
+            const categoryModal = document.getElementById('category-modal');
+            const categoryModalCloseBtn = document.getElementById('category-modal-close-btn');
+            const categoryForm = document.getElementById('category-form');
+            const newCategoryNameInput = document.getElementById('new-category-name');
+            const categoryListEl = document.getElementById('category-list');
+            
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+
+            // --- INITIALIZATION ---
+            
+            // 1. Load Google API scripts
+            loadGisScript();
+            loadGapiScript();
+
+            function loadGapiScript() {
+                const script = document.createElement('script');
+                script.src = 'https://apis.google.com/js/api.js';
+                script.onload = gapiLoaded;
+                document.body.appendChild(script);
+            }
+
+            function loadGisScript() {
+                const script = document.createElement('script');
+                script.src = 'https://accounts.google.com/gsi/client';
+                script.onload = gisLoaded;
+                document.body.appendChild(script);
+            }
+            
+            // 2. GAPI (Google API Client Library) loaded
+            function gapiLoaded() {
+                gapi.load('client:picker', () => {
+                    gapiInited = true;
+                    pickerInited = true; // Picker is loaded
+                    maybeEnableAuth();
+                });
+            }
+
+            // 3. GIS (Google Identity Services) loaded
+            function gisLoaded() {
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: CLIENT_ID,
+                    scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets',
+                    callback: '', // Callback is set dynamically
+                });
+                gisInited = true;
+                maybeEnableAuth();
+            }
+
+            // 4. Enable Auth button when both libs are ready
+            function maybeEnableAuth() {
+                if (gapiInited && gisInited) {
+                    authButton.disabled = false;
+                    authButton.onclick = handleAuthClick;
+                }
+            }
+            
+            // --- AUTHENTICATION ---
+            
+            async function handleAuthClick() {
+                showLoader('Authenticating...');
+                if (gapi.client.getToken() === null) {
+                    // Prompt user to select an account
+                    tokenClient.callback = async (resp) => {
+                        if (resp.error !== undefined) {
+                            hideLoader();
+                            showToast(`Error: ${resp.error}`, 'error');
+                            throw (resp);
+                        }
+                        await initializeApp();
+                    };
+
+                    if (gapi.client.getToken() === null) {
+                        tokenClient.requestAccessToken({ prompt: 'consent' });
+                    } else {
+                        tokenClient.requestAccessToken({ prompt: '' });
+                    }
+                } else {
+                    // User is already signed in
+                    await initializeApp();
+                }
+            }
+
+            async function initializeApp() {
+                showLoader('Loading Google APIs...');
+                try {
+                    // LoadSheets API
+                    await gapi.client.load('https://sheets.googleapis.com/$discovery/rest?version=v4');
+                    // Load Drive API (for file metadata)
+                    await gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest');
+                    
+                    showLoader('Accessing user profile...');
+                    const profile = await gapi.client.people.people.get({
+                        'resourceName': 'people/me',
+                        'personFields': 'names,emailAddresses',
+                    });
+                    
+                    const userName = profile.result.names[0].displayName;
+                    userNameEl.textContent = `Hello, ${userName}`;
+                    userNameEl.classList.remove('hidden');
+                    authButton.textContent = 'Sign Out';
+                    authButton.onclick = handleSignOut;
+                    
+                    // Check for Sheet ID
+                    if (!sheetFileId) {
+                        showLoader('Please select a Google Sheet...');
+                        await loadPicker();
+                    } else {
+                        // File ID exists, load data
+                        await loadAppData();
+                    }
+                } catch (err) {
+                    console.error('Error during app initialization:', err);
+                    showToast(`Error: ${err.message}`, 'error');
+                    hideLoader();
+                }
+            }
+
+            function handleSignOut() {
+                const token = gapi.client.getToken();
+                if (token !== null) {
+                    google.accounts.oauth2.revoke(token.access_token, () => {
+                        gapi.client.setToken(null);
+                        sheetFileId = null;
+                        localStorage.removeItem(SHEET_FILE_ID_KEY);
+                        mainContent.classList.add('hidden');
+                        authButton.textContent = 'Sign In with Google';
+                        authButton.onclick = handleAuthClick;
+                        userNameEl.classList.add('hidden');
+                        showToast('Signed out successfully.');
+                    });
+                }
+            }
+
+            // --- GOOGLE PICKER LOGIC ---
+
+            async function loadPicker() {
+                if (!pickerInited) {
+                    showToast('Picker API not loaded.', 'error');
+                    hideLoader();
+                    return;
+                }
+                
+                const response = await gapi.client.drive.files.list({
+                   'q': "mimeType='application/vnd.google-apps.spreadsheet' and name='MyFinanceAppSheet' and trashed=false",
+                    'fields': 'files(id, name)'
+                });
+                
+                const files = response.result.files;
+                if (files && files.length > 0) {
+                    // File already exists, use it
+                    sheetFileId = files[0].id;
+                    localStorage.setItem(SHEET_FILE_ID_KEY, sheetFileId);
+                    showToast('Found existing finance sheet.');
+                    await loadAppData();
+                } else {
+                    // No file found, show picker to create or select one
+                    showLoader('Please select or create a finance sheet...');
+                    createPicker();
+                }
+            }
+
+            function createPicker() {
+                const view = new google.picker.View(google.picker.ViewId.SPREADSHEETS);
+                view.setMimeTypes('application/vnd.google-apps.spreadsheet');
+                
+                const createView = new google.picker.View(google.picker.ViewId.CREATE_DOCUMENT);
+                createView.setLabel('New Sheet');
+                createView.setMimeTypes(['application/vnd.google-apps.spreadsheet']);
+                createView.setParent('root'); // Set a default parent folder
+                createView.setResource(JSON.stringify({
+                    "name": "MyFinanceAppSheet",
+                    "mimeType": "application/vnd.google-apps.spreadsheet"
+                }));
+                
+                const picker = new google.picker.PickerBuilder()
+                    .addViewGroup(view)
+                    .addViewGroup(createView)
+                    .setTitle('Select your finance sheet')
+                    .setOAuthToken(gapi.client.getToken().access_token)
+                    .setDeveloperKey(PICKER_API_KEY)
+                    .setCallback(pickerCallback)
+                    .build();
+                
+                picker.setVisible(true);
+            }
+            
+            async function pickerCallback(data) {
+                if (data.action === google.picker.Action.PICKED || data.action === google.picker.Action.CREATE) {
+                    const doc = data.docs[0];
+                    sheetFileId = doc.id;
+                    localStorage.setItem(SHEET_FILE_ID_KEY, sheetFileId);
+                    
+                    if (data.action === google.picker.Action.CREATE) {
+                        showToast('New sheet created: ' + doc.name);
+                        // New file, so we must initialize it
+                        await initializeNewSheet();
+                    } else {
+                        showToast('Selected sheet: ' + doc.name);
+                        // Existing file, just load data
+                        await loadAppData();
+                    }
+                } else if (data.action === google.picker.Action.CANCEL) {
+                    showToast('Please select a file to continue.', 'error');
+                    hideLoader();
+                }
+            }
+
+            async function changeFile() {
+                sheetFileId = null;
+                localStorage.removeItem(SHEET_FILE_ID_KEY);
+                await loadPicker();
+            }
+
+            // --- DATA HANDLING (GOOGLE SHEETS API) ---
+
+            async function initializeNewSheet() {
+                showLoader('Initializing new sheet...');
+                try {
+                    // 1. Create 'Transactions' sheet with headers
+                    const transactionHeaders = {
+                        values: [
+                            ['ID', 'Date', 'Description', 'Amount', 'Type', 'Category']
+                        ]
+                    };
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: sheetFileId,
+                        range: `${SHEET_NAME}!A1:F1`,
+                        valueInputOption: 'RAW',
+                        resource: transactionHeaders,
+                    });
+
+                    // 2. Create 'Categories' sheet and add defaults
+                    const addCategorySheetRequest = {
+                        requests: [
+                            { addSheet: { properties: { title: CATEGORY_SHEET_NAME } } }
+                        ]
+                    };
+                    await gapi.client.sheets.spreadsheets.batchUpdate({
+                        spreadsheetId: sheetFileId,
+                        resource: addCategorySheetRequest,
+                    });
+                    
+                    const categoryData = DEFAULT_CATEGORIES.map(cat => [cat]);
+                    const categoryBody = { values: categoryData };
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: sheetFileId,
+                        range: `${CATEGORY_SHEET_NAME}!A1`,
+                        valueInputOption: 'RAW',
+                        resource: categoryBody,
+                    });
+
+                    showToast('New sheet initialized.');
+                    await loadAppData(); // Now load the (mostly empty) data
+                } catch (err) {
+                    console.error('Error initializing sheet:', err);
+                    showToast('Error initializing sheet.', 'error');
+                    hideLoader();
+                }
+            }
+
+            async function loadAppData() {
+                showLoader('Loading financial data...');
+                if (!sheetFileId) {
+                    showToast('No Google Sheet file selected.', 'error');
+                    hideLoader();
+                    await loadPicker();
+                    return;
+                }
+                
+                try {
+                    // Batch get both sheets at once
+                    const response = await gapi.client.sheets.spreadsheets.values.batchGet({
+                        spreadsheetId: sheetFileId,
+                        ranges: [`${SHEET_NAME}!A:F`, `${CATEGORY_SHEET_NAME}!A:A`],
+                    });
+
+                    // 1. Process Transactions
+                    const transactionValues = response.result.valueRanges[0].values;
+                    if (transactionValues && transactionValues.length > 1) { // >1 to skip header
+                        transactions = transactionValues.slice(1).map(row => ({
+                            id: row[0],
+                            date: row[1],
+                            description: row[2],
+                            amount: parseFloat(row[3]),
+                            type: row[4],
+                            category: row[5],
+                        })).filter(t => t.id); // Ensure row is valid
+                    } else {
+                        transactions = [];
+                    }
+
+                    // 2. Process Categories
+                    const categoryValues = response.result.valueRanges[1].values;
+                    if (categoryValues && categoryValues.length > 0) {
+                        categories = categoryValues.map(row => row[0]);
+                    } else {
+                        // No categories found, add defaults
+                        categories = [...DEFAULT_CATEGORIES];
+                        await saveCategories();
+                    }
+
+                    // 3. Render UI
+                    updateUI();
+                    syncStatusEl.textContent = `Last sync: ${new Date().toLocaleTimeString()}`;
+                    showToast('Data loaded successfully.');
+                } catch (err) {
+                    console.error('Error loading app data:', err);
+                    if (err.result && err.result.error.status === 'NOT_FOUND') {
+                        showToast('Sheet not found. Please select a file.', 'error');
+                        sheetFileId = null;
+                        localStorage.removeItem(SHEET_FILE_ID_KEY);
+                        await loadPicker();
+                    } else {
+                        showToast('Error loading data.', 'error');
+                    }
+                } finally {
+                    hideLoader();
+                }
+            }
+            
+            async function syncDataToSheet() {
+                showLoader('Syncing data to Google Sheet...');
+                try {
+                    // 1. Prepare Transaction Data
+                    const transactionData = [
+                        ['ID', 'Date', 'Description', 'Amount', 'Type', 'Category'], // Headers
+                        ...transactions.map(t => [t.id, t.date, t.description, t.amount, t.type, t.category])
+                    ];
+                    
+                    // 2. Prepare Category Data
+                    const categoryData = categories.map(c => [c]);
+
+                    // 3. Batch Update Request
+                    const batchUpdateRequest = {
+                        valueInputOption: 'RAW',
+                        data: [
+                            {
+                                range: `${SHEET_NAME}!A1:F${transactionData.length}`,
+                                values: transactionData
+                            },
+                            {
+                                range: `${CATEGORY_SHEET_NAME}!A1:A${categoryData.length}`,
+                                values: categoryData
+                            }
+                        ]
+                    };
+                    
+                    // 4. Clear sheets before writing to remove deleted rows
+                    await gapi.client.sheets.spreadsheets.values.batchClear({
+                        spreadsheetId: sheetFileId,
+                        resource: {
+                            ranges: [`${SHEET_NAME}!A2:F`, `${CATEGORY_SHEET_NAME}!A:A`] // Clear data, not headers
+                        }
+                    });
+
+                    // 5. Write new data
+                    await gapi.client.sheets.spreadsheets.values.batchUpdate({
+                        spreadsheetId: sheetFileId,
+                        resource: batchUpdateRequest
+                    });
+                    
+                    syncStatusEl.textContent = `Last sync: ${new Date().toLocaleTimeString()}`;
+                    showToast('Data synced to Google Sheet!');
+                } catch (err) {
+                    console.error('Error syncing data:', err);
+                    showToast('Error syncing data.', 'error');
+                } finally {
+                    hideLoader();
+                }
+            }
+            
+            async function saveCategories() {
+                try {
+                    const categoryData = categories.map(c => [c]);
+                    const body = { values: categoryData };
+
+                    // Clear existing categories
+                    await gapi.client.sheets.spreadsheets.values.clear({
+                        spreadsheetId: sheetFileId,
+                        range: `${CATEGORY_SHEET_NAME}!A:A`,
+                    });
+                    
+                    // Write new categories
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: sheetFileId,
+                        range: `${CATEGORY_SHEET_NAME}!A1`,
+                        valueInputOption: 'RAW',
+                        resource: body,
+                    });
+                } catch (err) {
+                    console.error('Error saving categories:', err);
+                    showToast('Error saving categories.', 'error');
+                }
+            }
+
+            // --- UI RENDERING ---
+
+            function updateUI() {
+                renderAll();
+                mainContent.classList.remove('hidden');
+            }
+            
+            function renderAll() {
+                const filtered = getFilteredTransactions();
+                renderStats();
+                renderTransactionTable(filtered);
+                renderCategoryFilters();
+                renderIncomeExpensePieChart();
+                renderBarChart();
+            }
+
+            function getFilteredTransactions() {
+                const searchTerm = searchInput.value.toLowerCase();
+                const category = categoryFilter.value;
+                const type = typeFilter.value;
+
+                return transactions
+                    .filter(t => t.description.toLowerCase().includes(searchTerm))
+                    .filter(t => category === 'All' || t.category === category)
+                    .filter(t => type === 'All' || t.type === type)
+                    .sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date descending
+            }
+            
+            function formatCurrency(num) {
+                return new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                }).format(num);
+            }
+
+            function renderStats() {
+                const totalIncome = transactions
+                    .filter(t => t.type === 'Income')
+                    .reduce((sum, t) => sum + t.amount, 0);
+                
+                const totalExpenses = transactions
+                    .filter(t => t.type === 'Expense')
+                    .reduce((sum, t) => sum + t.amount, 0);
+
+                const totalBalance = totalIncome - totalExpenses;
+                
+                const savingsRate = totalIncome > 0 ? (totalBalance / totalIncome) * 100 : 0;
+
+                totalBalanceEl.textContent = formatCurrency(totalBalance);
+                totalIncomeEl.textContent = formatCurrency(totalIncome);
+                totalExpensesEl.textContent = formatCurrency(totalExpenses);
+                savingsRateEl.textContent = `${savingsRate.toFixed(1)}%`;
+                
+                // Set trend colors
+                balanceTrendEl.classList.toggle('text-green-400', totalBalance >= 0);
+                balanceTrendEl.classList.toggle('text-red-400', totalBalance < 0);
+                // Note: Trend calculation logic is simplified for now
+                balanceTrendEl.textContent = totalBalance >= 0 ? 'Trending positive' : 'Trending negative';
+                incomeTrendEl.textContent = 'N/A';
+                expenseTrendEl.textContent = 'N/A';
+                savingsTrendEl.textContent = 'N/A';
+            }
+
+            function renderTransactionTable(filteredTransactions) {
+                transactionTableBody.innerHTML = '';
+                
+                if (filteredTransactions.length === 0) {
+                    noTransactionsEl.classList.remove('hidden');
+                    return;
+                }
+                
+                noTransactionsEl.classList.add('hidden');
+
+                filteredTransactions.forEach(t => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-slate-700 hover:bg-slate-700/50';
+                    row.innerHTML = `
+                        <td class="py-3 px-4">${t.date}</td>
+                        <td class="py-3 px-4">${t.description}</td>
+                        <td class="py-3 px-4">
+                            ${t.category ? `<span class="bg-slate-700 text-slate-300 text-xs font-medium px-2 py-1 rounded-full">${t.category}</span>` : ''}
+                        </td>
+                        <td class="py-3 px-4 text-right font-medium ${t.type === 'Income' ? 'text-green-400' : 'text-red-400'}">
+                            ${t.type === 'Expense' ? '-' : '+'}${formatCurrency(t.amount)}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <button class="text-slate-500 hover:text-red-400 transition-colors" data-id="${t.id}">
+                                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12.502 0c.342.052.682.107 1.022.166m11.48 0c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12.502 0c.342.052.682.107 1.022.166" /></svg>
+                            </button>
+                        </td>
+                    `;
+                    // Add delete listener
+                    row.querySelector('button').addEventListener('click', () => deleteTransaction(t.id));
+                    transactionTableBody.appendChild(row);
+                });
+            }
+
+            function renderCategoryFilters() {
+                // Clear old options (except 'All')
+                categoryFilter.innerHTML = '<option value="All">All Categories</option>';
+                // Populate new options
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat;
+                    option.textContent = cat;
+                    categoryFilter.appendChild(option);
+                });
+            }
+
+            function renderIncomeExpensePieChart() {
+                const totalIncome = transactions
+                    .filter(t => t.type === 'Income')
+                    .reduce((sum, t) => sum + t.amount, 0);
+                
+                const totalExpenses = transactions
+                    .filter(t => t.type === 'Expense')
+                    .reduce((sum, t) => sum + t.amount, 0);
+
+                if (pieChartInstance) {
+                    pieChartInstance.destroy();
+                }
+                
+                if (totalIncome === 0 && totalExpenses === 0) {
+                    pieChartEl.classList.remove('loaded');
+                    return; // Don't render empty chart
+                }
+
+                pieChartInstance = new Chart(pieChartEl, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Total Income', 'Total Expenses'],
+                        datasets: [{
+                            data: [totalIncome, totalExpenses],
+                            backgroundColor: [
+                                'rgba(52, 211, 153, 0.7)', // green-400
+                                'rgba(248, 113, 113, 0.7)'  // red-400
+                            ],
+                            borderColor: [
+                                '#10b981', // green-500
+                                '#ef4444'  // red-500
+                            ],
+                            borderWidth: 1,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#cbd5e1' // slate-300
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                setTimeout(() => pieChartEl.classList.add('loaded'), 10);
+            }
+
+            function renderBarChart() {
+                // Aggregate data by month
+                const monthlyData = {};
+                transactions.forEach(t => {
+                    const month = t.date.substring(0, 7); // "YYYY-MM"
+                    if (!monthlyData[month]) {
+                        monthlyData[month] = { income: 0, expenses: 0 };
+                    }
+                    if (t.type === 'Income') {
+                        monthlyData[month].income += t.amount;
+                    } else {
+                        monthlyData[month].expenses += t.amount;
+                    }
+                });
+
+                // Get sorted labels (last 6 months)
+                const labels = [];
+                const today = new Date();
+                for (let i = 5; i >= 0; i--) {
+                    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                    labels.push(d.toISOString().substring(0, 7));
+                }
+
+                const incomeData = labels.map(label => monthlyData[label]?.income || 0);
+                const expenseData = labels.map(label => monthlyData[label]?.expenses || 0);
+                
+                // Format labels for display (e.g., "Jan")
+                const displayLabels = labels.map(label => {
+                    const d = new Date(label + '-02'); // Use 2nd day to avoid TZ issues
+                    return d.toLocaleString('default', { month: 'short' });
+                });
+
+
+                if (barChartInstance) {
+                    barChartInstance.destroy();
+                }
+                
+                barChartInstance = new Chart(barChartEl, {
+                    type: 'bar',
+                    data: {
+                        labels: displayLabels,
+                        datasets: [
+                            {
+                                label: 'Income',
+                                data: incomeData,
+                                backgroundColor: 'rgba(52, 211, 153, 0.7)', // green-400
+                                borderColor: '#10b981', // green-500
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Expenses',
+                                data: expenseData,
+                                backgroundColor: 'rgba(248, 113, 113, 0.7)', // red-400
+                                borderColor: '#ef4444', // red-500
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    color: '#94a3b8' // slate-400
+                                },
+                                grid: {
+                                    color: '#334155' // slate-700
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: '#94a3b8' // slate-400
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#cbd5e1' // slate-300
+                                }
+                            }
+                        }
+                    }
+                });
+
+                setTimeout(() => barChartEl.classList.add('loaded'), 10);
+            }
+
+            // --- TRANSACTION MODAL ---
+            
+            function showTransactionModal() {
+                modalTitle.textContent = 'Add Transaction';
+                modalSubmitBtn.textContent = 'Add Transaction';
+                transactionForm.reset();
+                transactionIdInput.value = '';
+                transactionDateInput.value = new Date().toISOString().split('T')[0]; // Today's date
+                populateCategoryDropdown();
+                toggleCategoryField();
+                transactionModal.classList.remove('hidden');
+            }
+
+            function hideTransactionModal() {
+                transactionModal.classList.add('hidden');
+            }
+
+            function handleTransactionFormSubmit(e) {
+                e.preventDefault();
+                
+                const transaction = {
+                    id: transactionIdInput.value || crypto.randomUUID(),
+                    date: transactionDateInput.value,
+                    description: transactionDescriptionInput.value.trim(),
+                    amount: parseFloat(transactionAmountInput.value),
+                    type: transactionTypeInput.value,
+                    category: transactionTypeInput.value === 'Expense' ? transactionCategoryInput.value : ''
+                };
+
+                if (!transaction.description) {
+                    showToast('Description cannot be empty.', 'error');
+                    return;
+                }
+                
+                if (transactionIdInput.value) {
+                    // Edit existing
+                    const index = transactions.findIndex(t => t.id === transaction.id);
+                    if (index !== -1) {
+                        transactions[index] = transaction;
+                    }
+                } else {
+                    // Add new
+                    transactions.push(transaction);
+                }
+                
+                updateUI();
+                syncDataToSheet(); // Auto-sync on change
+                hideTransactionModal();
+                showToast(`Transaction ${transactionIdInput.value ? 'updated' : 'added'} successfully.`);
+            }
+
+            function deleteTransaction(id) {
+                if (confirm('Are you sure you want to delete this transaction?')) {
+                    transactions = transactions.filter(t => t.id !== id);
+                    updateUI();
+                    syncDataToSheet(); // Auto-sync on change
+                    showToast('Transaction deleted.', 'error');
+                }
+            }
+            
+            function toggleCategoryField() {
+                if (transactionTypeInput.value === 'Expense') {
+                    categoryGroup.classList.remove('hidden');
+                    transactionCategoryInput.required = true;
+                } else {
+                    categoryGroup.classList.add('hidden');
+                    transactionCategoryInput.required = false;
+                }
+            }
+
+            function populateCategoryDropdown() {
+                transactionCategoryInput.innerHTML = '';
+                categories.forEach(cat => {
+                    // Don't add income-specific categories to expense dropdown
+                    if (cat.toLowerCase() !== 'salary' && cat.toLowerCase() !== 'freelance') {
+                        const option = document.createElement('option');
+                        option.value = cat;
+                        option.textContent = cat;
+                        transactionCategoryInput.appendChild(option);
+                    }
+                });
+            }
+
+            // --- CATEGORY MODAL ---
+            
+            function showCategoryModal() {
+                renderCategoryList();
+                categoryModal.classList.remove('hidden');
+            }
+
+            function hideCategoryModal() {
+                categoryModal.classList.add('hidden');
+            }
+
+            function renderCategoryList() {
+                categoryListEl.innerHTML = '';
+                categories.forEach(cat => {
+                    const item = document.createElement('div');
+                    item.className = 'flex justify-between items-center bg-slate-700 p-3 rounded-lg';
+                    item.innerHTML = `
+                        <span class="text-white">${cat}</span>
+                        <button class="text-slate-400 hover:text-red-400" data-category="${cat}">
+                            <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12.502 0c.342.052.682.107 1.022.166m11.48 0c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12.502 0c.342.052.682.107 1.022.166" /></svg>
+                        </button>
+                    `;
+                    item.querySelector('button').addEventListener('click', () => deleteCategory(cat));
+                    categoryListEl.appendChild(item);
+                });
+            }
+
+            function handleCategoryFormSubmit(e) {
+                e.preventDefault();
+                const newCategory = newCategoryNameInput.value.trim();
+                if (newCategory && !categories.includes(newCategory)) {
+                    categories.push(newCategory);
+                    categories.sort();
+                    renderCategoryList();
+                    populateCategoryDropdown(); // Update modal dropdown
+                    renderCategoryFilters(); // Update table filter
+                    saveCategories(); // Save to Google Sheet
+                    syncDataToSheet(); // Sync all data
+                    showToast('Category added.');
+                    newCategoryNameInput.value = '';
+                } else if (categories.includes(newCategory)) {
+                    showToast('Category already exists.', 'error');
+                }
+            }
+
+            function deleteCategory(category) {
+                if (confirm(`Are you sure you want to delete the category "${category}"? This cannot be undone.`)) {
+                    categories = categories.filter(c => c !== category);
+                    renderCategoryList();
+                    populateCategoryDropdown();
+                    renderCategoryFilters();
+                    
+                    // Note: This does not remove the category from existing transactions.
+                    // A more advanced implementation might set them to "Other".
+                    
+                    saveCategories();
+                    syncDataToSheet();
+                    showToast('Category deleted.', 'error');
+                }
+            }
+
+            // --- HELPERS (Loader, Toast) ---
+
+            function showLoader(message) {
+                loadingStatus.textContent = message;
+                globalLoader.classList.remove('hidden');
+                globalLoader.classList.add('flex');
+            }
+
+            function hideLoader() {
+                globalLoader.classList.add('hidden');
+                globalLoader.classList.remove('flex');
+            }
+
+            let toastTimer;
+            function showToast(message, type = 'success') {
+                toastMessage.textContent = message;
+                
+                // Reset classes
+                toast.classList.remove('bg-green-500', 'bg-red-500', 'translate-x-full', 'opacity-0');
+                
+                if (type === 'error') {
+                    toast.classList.add('bg-red-500');
+                } else {
+                    toast.classList.add('bg-green-500');
+                }
+
+                toast.classList.remove('hidden');
+                // Force a reflow for the animation to restart
+                void toast.offsetWidth;
+                
+                // Animate in
+                toast.classList.remove('translate-x-full');
+                toast.classList.add('translate-x-0');
+
+                // Clear previous timer if it exists
+                clearTimeout(toastTimer);
+
+                // Set timer to hide
+                toastTimer = setTimeout(() => {
+                    toast.classList.add('opacity-0');
+                    setTimeout(() => toast.classList.add('hidden'), 300); // Hide after fade out
+                }, 3000);
+            }
+
+            // --- EVENT LISTENERS ---
+            
+            // Filters
+            searchInput.addEventListener('input', renderAll);
+            categoryFilter.addEventListener('change', renderAll);
+            typeFilter.addEventListener('change', renderAll);
+
+            // Quick Actions
+            addTransactionBtnQuick.addEventListener('click', showTransactionModal);
+            syncButton.addEventListener('click', loadAppData); // Use loadAppData to re-fetch
+            changeFileButton.addEventListener('click', changeFile);
+            settingsButton.addEventListener('click', showCategoryModal);
+
+            // Transaction Modal
+            transactionTypeInput.addEventListener('change', toggleCategoryField);
+            transactionForm.addEventListener('submit', handleTransactionFormSubmit);
+            modalCloseBtn.addEventListener('click', hideTransactionModal);
+            modalCancelBtn.addEventListener('click', hideTransactionModal);
+            transactionModal.addEventListener('click', (e) => {
+                if (e.target === transactionModal) hideTransactionModal();
+            });
+            
+            // Category Modal
+            categoryForm.addEventListener('submit', handleCategoryFormSubmit);
+            categoryModalCloseBtn.addEventListener('click', hideCategoryModal);
+            categoryModal.addEventListener('click', (e) => {
+                if (e.target === categoryModal) hideCategoryModal();
+            });
+
+        });
+    </script>
+</body>
+</html>
